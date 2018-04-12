@@ -1,0 +1,3 @@
+[submodule "thirdparty/flex_lib"]
+	path = thirdparty/flex_lib
+	url = git@github.com:flexferrum/flex_lib.git

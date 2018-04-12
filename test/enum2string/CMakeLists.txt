@@ -27,6 +27,6 @@ add_executable(${PROJECT_NAME}
     ${ENUM_CONV_FILE}
     )
 
-target_link_libraries(${PROJECT_NAME} ${GTEST_BOTH_LIBRARIES} flex_lib)
+target_link_libraries(${PROJECT_NAME} ${GTEST_BOTH_LIBRARIES})
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})
