@@ -6,6 +6,8 @@
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/JamCRC.h>
 #include <llvm/Support/Path.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/FileUtilities.h>
 
 #include <iostream>
 #include <fstream>
@@ -58,6 +60,7 @@ cl::opt<std::string> OutputSourceName("osrc", cl::desc("Specify output source fi
 cl::opt<std::string> FileToUpdateName("update", cl::desc("Specify source filename for code update"), cl::value_desc("filename"), cl::cat(CodeGenCategory));
 cl::opt<bool> ShowClangErrors("show-clang-diag", cl::desc("Show clang diagnostic during file processing"), cl::value_desc("flag"), cl::init(false), cl::cat(CodeGenCategory));
 cl::list<std::string> ExtraHeaders("eh", cl::desc("Specify extra header files for include into generation result"), cl::value_desc("filename"), cl::ZeroOrMore, cl::cat(CodeGenCategory));
+cl::list<std::string> InputFiles("input", cl::desc("Specify input files to process"), cl::value_desc("filename"), cl::ZeroOrMore, cl::cat(CodeGenCategory));
 cl::list<TestGenOptions> TestGenModes("test-gen-mode", cl::desc("Tune up tests generation modes"),
   cl::values(
         clEnumValN(TestGenOptions::GenerateMocks, "mocks" , "Generate mocks (default)"),
@@ -142,20 +145,9 @@ private:
 };
 } // codegen
 
-int main(int argc, const char** argv)
+void ParseOptions(codegen::Options& options, clang::tooling::CommonOptionsParser& optionsParser)
 {
-    using namespace clang::tooling;
-    using namespace clang::ast_matchers;
-
-    clang::IgnoringDiagConsumer diagConsumer;
-
-    // Parse command line options and setup ClangTool
-    CommonOptionsParser optionsParser(argc, argv, CodeGenCategory);
-    ClangTool tool(optionsParser.getCompilations(), optionsParser.getSourcePathList());
-
-    codegen::Options options;
     options.generatorType = GenerationMode;
-    options.inputFiles = optionsParser.getSourcePathList();
     options.outputHeaderName = OutputHeaderName;
     options.outputSourceName = OutputSourceName;
     options.targetStandard = LangStandart;
@@ -212,7 +204,65 @@ int main(int argc, const char** argv)
 
     options.testGenOptions.classesToTest = ClassesToTest;
     options.testGenOptions.testFixtureName = TestFixtureName;
+}
 
+void PrepareCommandLine(int argc, const char** argv, std::vector<const char*>& args, std::string& inputFileName)
+{
+    llvm::SmallVector<char, 128> tmpFileName;
+    llvm::sys::fs::createTemporaryFile("codegen", "cpp", tmpFileName);
+    inputFileName.assign(tmpFileName.begin(), tmpFileName.end());
+
+    // Skip the tool-specific args
+    int cur = 0;
+    for (; cur < argc && strcmp(argv[cur], "--"); ++ cur)
+        args.push_back(argv[cur]);
+
+    args.push_back(inputFileName.c_str());
+    if (cur == argc)
+        return;
+
+    args.push_back(argv[cur ++]);
+    // TODO: Add additional options
+
+    for (; cur < argc; ++ cur)
+        args.push_back(argv[cur]);
+}
+
+std::string WriteInputFile(std::ostream& tempFile, const std::string& inputFile)
+{
+    llvm::SmallVector<char, 255> filePath(inputFile.begin(), inputFile.end());
+    llvm::sys::fs::make_absolute(filePath);
+    std::string result(filePath.begin(), filePath.end());
+    llvm::sys::path::convert_to_slash(result, llvm::sys::path::Style::posix);
+    tempFile << "#include \"" << result << "\"\n";
+    std::cout << "#include \"" << result << "\"\n";
+
+    return result;
+}
+
+int main(int argc, const char** argv)
+{
+    using namespace clang::tooling;
+    using namespace clang::ast_matchers;
+
+    clang::IgnoringDiagConsumer diagConsumer;
+
+    // Parse command line options and setup ClangTool
+    std::vector<const char*> clArgs;
+    std::string inputFileName;
+    PrepareCommandLine(argc, argv, clArgs, inputFileName);
+
+    std::cout << "Command line params:" << std::endl;
+    for (auto& opt : clArgs)
+    {
+        std::cout << "\t" << opt << std::endl;
+    }
+    int argsCount = clArgs.size();
+    CommonOptionsParser optionsParser(argsCount, &clArgs[0], CodeGenCategory);
+    ClangTool tool(optionsParser.getCompilations(), optionsParser.getSourcePathList());
+
+    codegen::Options options;
+    ParseOptions(options, optionsParser);
     if (!ShowClangErrors)
         tool.setDiagnosticConsumer(&diagConsumer);
 
@@ -230,6 +280,16 @@ int main(int argc, const char** argv)
     {
         std::cerr << "Failed to create generator for generation mode '" << GenerationMode.ValueStr.str() << "'" << std::endl;
         return -1;
+    }
+
+    llvm::FileRemover inputFileRemover(inputFileName);
+    {
+        std::ofstream input(inputFileName);
+        for (auto& file : InputFiles)
+            options.inputFiles.insert(WriteInputFile(input, file));
+
+        if (!FileToUpdateName.getValue().empty())
+            options.fileToUpdate = WriteInputFile(input, FileToUpdateName);
     }
 
     codegen::MatchHandler handler(options, generator.get());

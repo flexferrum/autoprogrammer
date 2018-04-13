@@ -15,7 +15,7 @@ include_directories(
 set (PIMPL_GEN_FILE ${CODEGEN_DIR}/generated/pimpl_gen.cpp)
 
 add_custom_command(OUTPUT ${PIMPL_GEN_FILE}
-    COMMAND $<TARGET_FILE:${CODEGEN_BIN_NAME}> -gen-pimpl -ohdr ${PIMPL_GEN_FILE} -eh ${CMAKE_CURRENT_SOURCE_DIR}/test_pimpl_impl.h ${CMAKE_CURRENT_SOURCE_DIR}/test_pimpl.h -- clang-cl -std=c++14 -x c++ ${CMAKE_CXX_FLAGS} -I ${FLEXLIB_INCLUDE_DIR}
+    COMMAND $<TARGET_FILE:${CODEGEN_BIN_NAME}> -gen-pimpl -ohdr ${PIMPL_GEN_FILE} -eh ${CMAKE_CURRENT_SOURCE_DIR}/test_pimpl_impl.h -input ${CMAKE_CURRENT_SOURCE_DIR}/test_pimpl.h -- clang-cl -std=c++14 -x c++ ${CMAKE_CXX_FLAGS} -I ${FLEXLIB_INCLUDE_DIR}
     MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/test_pimpl.h
     DEPENDS ${CODEGEN_BIN_NAME}
     COMMENT "Generating pimpl default implementation for ${CMAKE_CURRENT_SOURCE_DIR}/test_pimpl.h"

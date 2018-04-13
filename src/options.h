@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <set>
 
 namespace codegen
 {
@@ -49,8 +50,9 @@ struct Options
     GeneratorId generatorType = GeneratorId::Unknown;
     std::string outputHeaderName;
     std::string outputSourceName;
-    std::vector<std::string> inputFiles;
+    std::set<std::string> inputFiles;
     std::vector<std::string> extraHeaders;
+    std::string fileToUpdate;
     bool debugMode = false;
     Standard targetStandard = Standard::Auto;
     TestGenOptions testGenOptions;

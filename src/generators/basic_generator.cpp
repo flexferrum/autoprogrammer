@@ -1,5 +1,8 @@
 #include "basic_generator.h"
 
+#include <clang/AST/ASTContext.h>
+#include <clang/Basic/SourceManager.h>
+
 #include <fstream>
 
 namespace codegen
@@ -93,6 +96,24 @@ bool BasicGenerator::GenerateOutput()
     }
 
     return true;
+}
+
+bool BasicGenerator::IsFromInputFiles(const clang::SourceLocation& loc, const clang::ASTContext* context) const
+{
+    auto& sm = context->getSourceManager();
+    auto ploc = sm.getPresumedLoc(loc, false);
+    std::string locFilename = ploc.getFilename();
+
+    return m_options.inputFiles.count(locFilename) != 0;
+}
+
+bool BasicGenerator::IsFromUpdatingFile(const clang::SourceLocation& loc, const clang::ASTContext* context) const
+{
+    auto& sm = context->getSourceManager();
+    auto ploc = sm.getPresumedLoc(loc, false);
+    std::string locFilename = ploc.getFilename();
+
+    return m_options.fileToUpdate == locFilename;
 }
 
 void BasicGenerator::WriteExtraHeaders(CppSourceStream& os)

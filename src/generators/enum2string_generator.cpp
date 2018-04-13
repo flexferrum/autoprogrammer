@@ -9,48 +9,51 @@
 
 using namespace clang::ast_matchers;
 
-namespace codegen 
+namespace codegen
 {
-namespace  
+namespace
 {
-DeclarationMatcher enumMatcher = 
-        enumDecl(isExpansionInMainFile()).bind("enum");
+DeclarationMatcher enumMatcher =
+        enumDecl().bind("enum");
 }
 
 Enum2StringGenerator::Enum2StringGenerator(const Options &opts)
     : BasicGenerator(opts)
 {
-    
+
 }
 
 void Enum2StringGenerator::SetupMatcher(clang::ast_matchers::MatchFinder &finder, clang::ast_matchers::MatchFinder::MatchCallback *defaultCallback)
 {
-    finder.addMatcher(enumMatcher, defaultCallback);    
+    finder.addMatcher(enumMatcher, defaultCallback);
 }
 
 void Enum2StringGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::MatchResult &matchResult)
 {
     if (const clang::EnumDecl* decl = matchResult.Nodes.getNodeAs<clang::EnumDecl>("enum"))
     {
+        if (!IsFromInputFiles(decl->getLocStart(), matchResult.Context))
+            return;
+
         reflection::AstReflector reflector(matchResult.Context);
-        
+
         reflector.ReflectEnum(decl, &m_namespaces);
-    }    
+    }
 }
 
 void Enum2StringGenerator::WriteHeaderPreamble(CppSourceStream &hdrOs)
 {
     hdrOs << out::header_guard(m_options.outputHeaderName) << "\n";
-    
+
     // Include input files (directly, by path)
     for (auto fileName : m_options.inputFiles)
     {
         std::replace(fileName.begin(), fileName.end(), '\\', '/');
         hdrOs << "#include \"" << fileName << "\"\n";
     }
-    
+
     WriteExtraHeaders(hdrOs);
-    
+
     // Necessary library files
     hdrOs << "#include <flex_lib/stringized_enum.h>\n";
     hdrOs << "#include <algorithm>\n";
@@ -75,9 +78,9 @@ out::ScopedParams MakeScopedParams(CppSourceStream &os, reflection::EnumInfoPtr 
         {"enumScopedName", scopedName},
         {"scopeQual", scopeSpec},
         {"namespaceQual", enumDescr->namespaceQualifier},
-        {"enumFullQualifiedName", fullQualifiedName},                                 
+        {"enumFullQualifiedName", fullQualifiedName},
         {"prefix", enumDescr->isScoped ? scopedName + "::" : scopeSpec + (scopeSpec.empty() ? "" : "::")}
-    });    
+    });
 }
 
 }
@@ -91,11 +94,11 @@ void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
             WriteEnumToStringConversion(os, enumInfo);
             WriteEnumFromStringConversion(os, enumInfo);
             enums.push_back(enumInfo);
-        }      
+        }
     });
 
     hdrOs << "\n\n";
-    
+
     for (reflection::EnumInfoPtr enumInfo : enums)
     {
         auto scopedParams = MakeScopedParams(hdrOs, enumInfo);
@@ -116,7 +119,7 @@ void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
     {
         out::BracedStreamScope flNs("\nnamespace std", "\n\n", 0);
         hdrOs << out::new_line << flNs;
-        
+
         for (reflection::EnumInfoPtr enumInfo : enums)
         {
             auto scopedParams = MakeScopedParams(hdrOs, enumInfo);
@@ -132,7 +135,7 @@ void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
 void Enum2StringGenerator::WriteEnumToStringConversion(CppSourceStream &hdrOs, const reflection::EnumInfoPtr &enumDescr)
 {
     auto scopedParams = MakeScopedParams(hdrOs, enumDescr);
-    
+
     out::BracedStreamScope fnScope("inline const char* $enumName$ToString($enumScopedName$ e)", "\n");
     hdrOs << out::new_line << fnScope;
     {
@@ -154,7 +157,7 @@ void Enum2StringGenerator::WriteEnumToStringConversion(CppSourceStream &hdrOs, c
 void Enum2StringGenerator::WriteEnumFromStringConversion(CppSourceStream &hdrOs, const reflection::EnumInfoPtr &enumDescr)
 {
     auto params = MakeScopedParams(hdrOs, enumDescr);
-    
+
     out::BracedStreamScope fnScope("inline $enumScopedName$ StringTo$enumName$(const char* itemName)", "\n");
     hdrOs << out::new_line << fnScope;
     {
@@ -168,14 +171,14 @@ void Enum2StringGenerator::WriteEnumFromStringConversion(CppSourceStream &hdrOs,
         {
             innerParams["itemName"] = i.itemName;
             hdrOs << out::with_params(innerParams) << out::new_line << "{\"$itemName$\", $prefix$$itemName$},";
-        }    
+        }
     }
 
     hdrOs << out::with_params(params.GetParams()) << R"(
      $enumScopedName$ result;
      if (!flex_lib::detail::String2Enum(itemName, items, result))
          flex_lib::bad_enum_name::Throw(itemName, "$enumName$");
- 
+
      return result;)";
 }
 } // codegen

@@ -15,7 +15,7 @@ include_directories(
 set (ENUM_CONV_FILE ${CODEGEN_DIR}/generated/enum_conv_gen.h)
 
 add_custom_command(OUTPUT ${ENUM_CONV_FILE}
-    COMMAND $<TARGET_FILE:${CODEGEN_BIN_NAME}> -gen-enum2string -ohdr ${ENUM_CONV_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/test_enums.h -- clang-cl -std=c++14 -x c++ ${CMAKE_CXX_FLAGS}
+    COMMAND $<TARGET_FILE:${CODEGEN_BIN_NAME}> -gen-enum2string -ohdr ${ENUM_CONV_FILE} -input ${CMAKE_CURRENT_SOURCE_DIR}/test_enums.h -- clang-cl -std=c++14 -x c++ ${CMAKE_CXX_FLAGS}
     MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/test_enums.h
     DEPENDS ${CODEGEN_BIN_NAME}
     COMMENT "Generating enum2string converters for ${CMAKE_CURRENT_SOURCE_DIR}/test_enums.h"

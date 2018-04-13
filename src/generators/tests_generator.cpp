@@ -32,7 +32,7 @@ void TestsGenerator::SetupMatcher(MatchFinder& finder, MatchFinder::MatchCallbac
 {
     if (m_options.testGenOptions.classesToTest.empty())
     {
-        m_matchers.push_back(std::make_unique<DeclarationMatcher>(cxxRecordDecl(isExpansionInMainFile(), isDefinition()).bind("regularClass")));
+        m_matchers.push_back(std::make_unique<DeclarationMatcher>(cxxRecordDecl(isDefinition()).bind("regularClass")));
         finder.addMatcher(*m_matchers.back().get(), defaultCallback);
     }
 }
@@ -41,6 +41,9 @@ void TestsGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::MatchRe
 {
     if (const clang::CXXRecordDecl* decl = matchResult.Nodes.getNodeAs<clang::CXXRecordDecl>("regularClass"))
     {
+        if (!IsFromInputFiles(decl->getLocStart(), matchResult.Context) && !IsFromUpdatingFile(decl->getLocStart(), matchResult.Context))
+            return;
+
         reflection::AstReflector reflector(matchResult.Context);
 
         auto ci = reflector.ReflectClass(decl, &m_namespaces);
@@ -95,7 +98,7 @@ void TestsGenerator::WriteTestHelperClass(CppSourceStream& os, reflection::Class
             {"className", classInfo->GetScopedName()},
         });
 
-    os << out::new_line << "class $className$::TestHelper";
+    os << out::new_line << "class $className$TestHelper";
     out::BracedStreamScope declBody("", ";\n");
     os << declBody;
     os << out::new_line(-1) << "public:";
@@ -370,7 +373,7 @@ void TestsGenerator::WriteCopyConstructorTestImpl(CppSourceStream& os, reflectio
     os << out::new_line << classInfo->name << " initValue{};";
     os << out::new_line << "// Special initialization goes here";
     os << out::new_line << out::new_line << classInfo->name << " newValue(initValue);";
-    m_implGenerator->WriteExpectExprIsTrue(os, classInfo->name + "::TestHelper::AreEqual(initValue, newValue)");
+    m_implGenerator->WriteExpectExprIsTrue(os, classInfo->name + "TestHelper::AreEqual(initValue, newValue)");
 //    os << out::new_line << "// Test initValue and newValue are the same";
 }
 
@@ -386,8 +389,8 @@ void TestsGenerator::WriteMoveConstructorTestImpl(CppSourceStream& os, reflectio
     os << out::new_line << "// Special initialization goes here";
     os << out::new_line << classInfo->name << " initValueCopy(initValue);";
     os << out::new_line << out::new_line << classInfo->name << " newValue(std::move(initValue));";
-    m_implGenerator->WriteExpectExprIsTrue(os, classInfo->name + "::TestHelper::AreEqual(initValueCopy, newValue)");
-    m_implGenerator->WriteExpectExprIsTrue(os, classInfo->name + "::TestHelper::IsDefault(initValue)");
+    m_implGenerator->WriteExpectExprIsTrue(os, classInfo->name + "TestHelper::AreEqual(initValueCopy, newValue)");
+    m_implGenerator->WriteExpectExprIsTrue(os, classInfo->name + "TestHelper::IsDefault(initValue)");
 }
 
 void TestsGenerator::WriteConvertConstructorTestImpl(CppSourceStream& os, reflection::ClassInfoPtr classInfo, reflection::MethodInfoPtr methodInfo, TestsGenerator::TestType testType)

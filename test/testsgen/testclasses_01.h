@@ -4,7 +4,6 @@
 class TestClass01
 {
 public:
-    class TestHelper;
     TestClass01();
     TestClass01(int someValue);
 
@@ -35,6 +34,8 @@ public:
 
 private:
     int m_someValue;
+
+    friend class TestClass01TestHelper;
 };
 
 #endif // TESTCLASSES_01_H

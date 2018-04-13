@@ -19,6 +19,9 @@ public:
 protected:
     const Options& m_options;
 
+    bool IsFromInputFiles(const clang::SourceLocation& loc, const clang::ASTContext* context) const;
+    bool IsFromUpdatingFile(const clang::SourceLocation& loc, const clang::ASTContext* context) const;
+
     virtual void WriteHeaderPreamble(CppSourceStream& hdrOs) {}
     virtual void WriteHeaderContent(CppSourceStream& hdrOs) {}
     virtual void WriteHeaderPostamble(CppSourceStream& hdrOs) {}
