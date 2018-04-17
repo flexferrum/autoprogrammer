@@ -53,6 +53,8 @@ struct Options
     std::set<std::string> inputFiles;
     std::vector<std::string> extraHeaders;
     std::string fileToUpdate;
+    std::string formatStyleName;
+    std::string formatStyleConfig;
     bool debugMode = false;
     Standard targetStandard = Standard::Auto;
     TestGenOptions testGenOptions;

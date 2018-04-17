@@ -95,6 +95,7 @@ target_link_libraries(${CODEGEN_BIN_NAME}
     clangRewriteFrontend
     clangStaticAnalyzerFrontend
     clangTooling
+    clangFormat
     ${Boost_LIBRARIES}
     )
 

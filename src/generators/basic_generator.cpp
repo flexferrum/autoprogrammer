@@ -2,8 +2,13 @@
 
 #include <clang/AST/ASTContext.h>
 #include <clang/Basic/SourceManager.h>
+#include <clang/Basic/FileManager.h>
+#include <clang/Rewrite/Frontend/Rewriters.h>
+#include <clang/Rewrite/Core/Rewriter.h>
+#include <clang/Format/Format.h>
 
 #include <fstream>
+#include <sstream>
 
 namespace codegen
 {
@@ -49,51 +54,71 @@ FileState OpenGeneratedFile(const std::string& fileName, std::ofstream& fileStre
     return FileState::Good;
 }
 
-bool BasicGenerator::GenerateOutput()
+bool BasicGenerator::GenerateOutput(const clang::ASTContext* astContext, clang::SourceManager* sourceManager)
 {
+    if (!clang::format::getPredefinedStyle(m_options.formatStyleName, clang::format::FormatStyle::LK_Cpp, &m_formatStyle))
+    {
+        std::cout << "Can't load style with name: " << m_options.formatStyleName << std::endl;
+    }
+    bool result = true;
     if (!m_options.outputHeaderName.empty())
     {
-        std::ostream* targetHeaderOs = nullptr;
-        std::ofstream outHdrFile;
-
-        auto hdrFileState = OpenGeneratedFile(m_options.outputHeaderName, outHdrFile, targetHeaderOs);
-        if (hdrFileState == FileState::Bad)
-        {
-            std::cerr << "Can't open output header file for writing: " << m_options.outputHeaderName << std::endl;
-            return false;
-        }
-
-        if (hdrFileState == FileState::Good)
-        {
-            CppSourceStream stream(*targetHeaderOs);
-
+        result = GenerateOutputFile(m_options.outputHeaderName, "fl-codegen-output-header.h", astContext, sourceManager, [this](auto& stream) {
             WriteHeaderPreamble(stream);
             WriteHeaderContent(stream);
             WriteHeaderPostamble(stream);
-        }
+
+            return true;
+        });
     }
+    if (!result)
+        return false;
 
     if (!m_options.outputSourceName.empty())
     {
-        std::ostream* targetSourceOs = nullptr;
-        std::ofstream outSrcFile;
-
-        auto hdrFileState = OpenGeneratedFile(m_options.outputSourceName, outSrcFile, targetSourceOs);
-        if (hdrFileState == FileState::Bad)
-        {
-            std::cerr << "Can't open output source file for writing: " << m_options.outputSourceName << std::endl;
-            return false;
-        }
-
-        if (hdrFileState == FileState::Good)
-        {
-            CppSourceStream stream(*targetSourceOs);
-
+        result = GenerateOutputFile(m_options.outputSourceName, "fl-codegen-output-source.cpp", astContext, sourceManager, [this](auto& stream) {
             WriteSourcePreamble(stream);
             WriteSourceContent(stream);
             WriteSourcePostamble(stream);
-        }
+
+            return true;
+        });
     }
+
+    return result;
+}
+
+bool BasicGenerator::GenerateOutputFile(const std::string& fileName, std::string tmpFileId, const clang::ASTContext* astContext, clang::SourceManager* sourceManager, std::function<bool (CppSourceStream&)> generator)
+{
+    using namespace clang;
+
+    std::ostringstream targetHeaderOs;
+    {
+        CppSourceStream stream(targetHeaderOs);
+
+        if (!generator(stream))
+            return false;
+    }
+
+    auto fileContent = targetHeaderOs.str();
+    tooling::Range fileRange(0, static_cast<unsigned>(fileContent.size()));
+    auto replaces = format::reformat(m_formatStyle, fileContent, {fileRange});
+    auto formattingResult = tooling::applyAllReplacements(fileContent, replaces);
+
+    if (!formattingResult)
+        return false;
+    std::string formattedContent = formattingResult.get();
+
+    std::ofstream outHdrFile;
+    std::ostream* targetOs;
+
+    auto hdrFileState = OpenGeneratedFile(fileName, outHdrFile, targetOs);
+    if (hdrFileState == FileState::Bad)
+    {
+        std::cerr << "Can't open output file for writing: " << fileName << std::endl;
+        return false;
+    }
+    *targetOs << formattedContent;
 
     return true;
 }
@@ -125,4 +150,5 @@ void BasicGenerator::WriteExtraHeaders(CppSourceStream& os)
         os << (quoted ? "\"" : "") << h << (quoted ? "\"" : "") << "\n";
     }
 }
+
 } // codegen

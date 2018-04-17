@@ -4,6 +4,8 @@
 #include "generator_base.h"
 #include "cpp_source_stream.h"
 
+#include <clang/Format/Format.h>
+
 namespace codegen
 {
 class BasicGenerator : public GeneratorBase
@@ -14,7 +16,7 @@ public:
     // GeneratorBase interface
     void OnCompilationStarted() override;
     bool Validate() override;
-    bool GenerateOutput() override;
+    bool GenerateOutput(const clang::ASTContext* astContext, clang::SourceManager* sourceManager) override;
 
 protected:
     const Options& m_options;
@@ -31,6 +33,10 @@ protected:
     virtual void WriteSourcePostamble(CppSourceStream& srcOs) {}
 
     void WriteExtraHeaders(CppSourceStream& os);
+
+private:
+    bool GenerateOutputFile(const std::string& fileName, std::string tmpFileId, const clang::ASTContext* astContext, clang::SourceManager* sourceManager, std::function<bool (CppSourceStream&)> generator);
+    clang::format::FormatStyle m_formatStyle;
 };
 
 } // codegen

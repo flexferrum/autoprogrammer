@@ -61,6 +61,7 @@ cl::opt<std::string> FileToUpdateName("update", cl::desc("Specify source filenam
 cl::opt<bool> ShowClangErrors("show-clang-diag", cl::desc("Show clang diagnostic during file processing"), cl::value_desc("flag"), cl::init(false), cl::cat(CodeGenCategory));
 cl::list<std::string> ExtraHeaders("eh", cl::desc("Specify extra header files for include into generation result"), cl::value_desc("filename"), cl::ZeroOrMore, cl::cat(CodeGenCategory));
 cl::list<std::string> InputFiles("input", cl::desc("Specify input files to process"), cl::value_desc("filename"), cl::ZeroOrMore, cl::cat(CodeGenCategory));
+cl::opt<std::string> FormatStyle("format-style", cl::desc("Specify style name or configuration file name for the formatting style"), cl::init("LLVM"), cl::value_desc("stylename or filename"), cl::cat(CodeGenCategory));
 cl::list<TestGenOptions> TestGenModes("test-gen-mode", cl::desc("Tune up tests generation modes"),
   cl::values(
         clEnumValN(TestGenOptions::GenerateMocks, "mocks" , "Generate mocks (default)"),
@@ -127,13 +128,18 @@ public:
 
     void run(const clang::ast_matchers::MatchFinder::MatchResult& result)
     {
+        if (!m_astContext)
+        {
+            m_astContext = result.Context;
+            m_sourceManager = result.SourceManager;
+        }
         m_generator->HandleMatch(result);
     }
 
     void onEndOfTranslationUnit()
     {
         if (!(m_hasErrors = !m_generator->Validate()))
-            m_hasErrors = !m_generator->GenerateOutput();
+            m_hasErrors = !m_generator->GenerateOutput(m_astContext, m_sourceManager);
     }
 
     bool HasErrors() const {return m_hasErrors;}
@@ -141,6 +147,8 @@ public:
 private:
     Options m_options;
     GeneratorBase* m_generator = nullptr;
+    const clang::ASTContext* m_astContext = nullptr;
+    clang::SourceManager* m_sourceManager = nullptr;
     bool m_hasErrors = false;
 };
 } // codegen
@@ -152,6 +160,11 @@ void ParseOptions(codegen::Options& options, clang::tooling::CommonOptionsParser
     options.outputSourceName = OutputSourceName;
     options.targetStandard = LangStandart;
     options.extraHeaders = ExtraHeaders;
+    if (llvm::sys::fs::exists(static_cast<std::string>(FormatStyle)))
+        options.formatStyleConfig = FormatStyle;
+    else
+        options.formatStyleName = FormatStyle;
+
     options.testGenOptions.testEngine = TestEngine;
     for (auto& opt : TestGenModes)
     {
