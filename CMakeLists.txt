@@ -68,6 +68,8 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
     message(STATUS "CodeGenerator is compiled with enabled exceptions")
 endif()
 
+add_subdirectory(thirdparty)
+
 include_directories(
     ${CLANG_INCLUDE_DIRS}
     ${LLVM_INCLUDE_DIRS}
@@ -97,6 +99,7 @@ target_link_libraries(${CODEGEN_BIN_NAME}
     clangTooling
     clangFormat
     ${Boost_LIBRARIES}
+#    Jinja2CppLight
     )
 
 add_subdirectory(test)
