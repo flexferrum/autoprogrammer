@@ -8,7 +8,7 @@ This tool helps you dramatically reduce the amount of boilerplate code in your C
 - [How to use](#how-to-use) 
 - [How to build and install](#how-to-build-and-install)
 
-#Overview
+# Overview
 Historically, C++ (as a language) has got a lack of compile or runtime introspection, reflection and code injection. In consequence, the easiest task (for example, enum to string conversion) can lead the strong headache. The main purpose of 'autoprogrammer' tool is to eliminate this problem. Completely eliminate. This tool can be integrated in the build toolchain and produce a lot of boring boilerplate source code based on hand-written sources. For instance, can generate enum-string-enum conversion function. Or serialization/deserialization procedures. Or ORM mapping. Or static reflection helpers. And so forth, and so on. Currently, tool supports the following type of generators:
 - enum to string (and back) convertors implementation
 - pImpl public class methods implementation
