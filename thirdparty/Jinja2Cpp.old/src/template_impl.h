@@ -2,7 +2,7 @@
 #define TEMPLATE_IMPL_H
 
 #include <string>
-#include "value.h"
+#include "jinja2cpp/value.h"
 #include "renderer.h"
 #include "template_parser.h"
 #include "value_visitors.h"

@@ -9,7 +9,7 @@
 
 #include "gtest/gtest.h"
 
-#include "template.h"
+#include "jinja2cpp/template.h"
 
 using namespace std;
 using namespace jinja2;

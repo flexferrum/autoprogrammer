@@ -1,7 +1,7 @@
 #ifndef OUT_STREAM_H
 #define OUT_STREAM_H
 
-#include "value.h"
+#include "jinja2cpp/value.h"
 #include <functional>
 
 namespace jinja2

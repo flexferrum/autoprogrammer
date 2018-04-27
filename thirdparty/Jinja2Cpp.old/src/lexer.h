@@ -2,7 +2,7 @@
 #define LEXER_H
 
 #include "lexertk.h"
-#include "value.h"
+#include "jinja2cpp/value.h"
 
 #include <functional>
 

@@ -3,7 +3,7 @@
 
 #include "gtest/gtest.h"
 
-#include "template.h"
+#include "jinja2cpp/template.h"
 
 using namespace jinja2;
 

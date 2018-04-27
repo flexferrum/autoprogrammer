@@ -14,7 +14,6 @@ namespace jinja2
 struct EmptyValue {};
 class Value;
 
-
 class ReflectedMap
 {
 public:
@@ -43,6 +42,32 @@ public:
     {
         return m_accessor()->ToString();
     }
+
+    std::function<const ItemAccessor* ()> m_accessor;
+};
+
+class ReflectedList
+{
+public:
+    struct ItemAccessor
+    {
+        virtual ~ItemAccessor() {}
+        virtual size_t GetSize() const = 0;
+        virtual Value GetValue(size_t idx) const = 0;
+    };
+
+    ReflectedList() = default;
+    ReflectedList(std::function<const ItemAccessor* ()> accessor)
+        : m_accessor(std::move(accessor))
+    {
+    }
+
+    bool GetSize() const
+    {
+        return m_accessor()->GetSize();
+    }
+
+    Value GetValue(int idx) const;
 
     std::function<const ItemAccessor* ()> m_accessor;
 };

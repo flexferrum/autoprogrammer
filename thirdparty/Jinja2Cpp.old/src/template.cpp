@@ -1,4 +1,4 @@
-#include "template.h"
+#include "jinja2cpp/template.h"
 #include "template_impl.h"
 
 #include <fstream>
