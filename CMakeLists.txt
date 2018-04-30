@@ -99,7 +99,7 @@ target_link_libraries(${CODEGEN_BIN_NAME}
     clangTooling
     clangFormat
     ${Boost_LIBRARIES}
-#    Jinja2CppLight
+    Jinja2Cpp
     )
 
 add_subdirectory(test)

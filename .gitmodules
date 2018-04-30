@@ -1,3 +1,6 @@
 [submodule "thirdparty/flex_lib"]
 	path = thirdparty/flex_lib
 	url = git@github.com/flex_lib.git
+[submodule "thirdparty/Jinja2Cpp"]
+	path = thirdparty/Jinja2Cpp
+	url = https://github.com/flexferrum/Jinja2Cpp.git
