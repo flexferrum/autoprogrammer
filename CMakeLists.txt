@@ -105,7 +105,7 @@ target_link_libraries(${CODEGEN_BIN_NAME}
     ${EXTRA_LIBS}
     ${Boost_LIBRARIES}
     Threads::Threads
-#    Jinja2CppLight
+    Jinja2Cpp
     )
 
 get_target_property(CODEGEN_COMPILE_OPTIONS ${CODEGEN_BIN_NAME} COMPILE_FLAGS)
