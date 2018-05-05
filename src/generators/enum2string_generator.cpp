@@ -146,8 +146,7 @@ void Enum2StringGenerator::WriteEnumToStringConversion(CppSourceStream &hdrOs, c
         {
             innerParams["itemName"] = i.itemName;
             hdrOs << out::with_params(innerParams)
-                  << out::new_line(-1) << "case $prefix$$itemName$:";
-            hdrOs
+                  << out::new_line(-1) << "case $prefix$$itemName$:"
                   << out::new_line(1) << "return \"$itemName$\";";
         }
     }

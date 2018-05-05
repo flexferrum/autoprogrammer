@@ -9,20 +9,26 @@
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/type_traits/has_left_shift.hpp>
 
-namespace codegen 
+namespace codegen
 {
 class StreamController;
 
 namespace out
 {
 using OutParams = std::unordered_map<std::string, std::string>;
+namespace detail
+{
+struct CppStreamManip
+{
+};
+}
 }
 
 class CppSourceStream : public boost::iostreams::filtering_ostream
 {
 public:
     CppSourceStream(std::ostream& os);
-    
+
     void WriteIndent(int indentDelta = 0);
     void Indent(int amout);
     void EnterScope(const std::string& closer, int unindent);
@@ -30,19 +36,19 @@ public:
     void WriteHeaderGuard(const std::string& fileName);
     void SetParams(const out::OutParams* params);
     void ResetParams(const out::OutParams *params);
-    
+
 private:
-    StreamController* m_controller;    
-    
+    StreamController* m_controller;
+
     template<typename R>
     friend auto& operator << (CppSourceStream& stream, R (*manip)(CppSourceStream& stream))
     {
         return (*manip)(stream);
     }
-    
+
     template<typename Val>
-    friend auto operator << (CppSourceStream& stream, Val&& val) 
-            -> std::enable_if_t<boost::has_left_shift<CppSourceStream, Val, CppSourceStream>::value, CppSourceStream&>
+    friend auto operator << (CppSourceStream& stream, Val&& val)
+            -> std::enable_if_t<!std::is_base_of<out::detail::CppStreamManip, std::decay_t<Val>>::value, CppSourceStream&>
     {
         static_cast<boost::iostreams::filtering_ostream&>(stream) << std::forward<Val>(val);
         return stream;
@@ -55,9 +61,11 @@ namespace out
 namespace detail
 {
 template<typename Fn>
-struct Manip
+struct Manip : public CppStreamManip
 {
     Fn fn;
+    explicit Manip(const Fn& f) : fn(f) {}
+    explicit Manip(Fn&& f) : fn(std::move(f)) {}
     friend auto& operator << (CppSourceStream& s, const Manip<Fn>& m)
     {
         return m.fn(s);
@@ -70,20 +78,20 @@ auto MakeManip(Fn&& fn)
     return Manip<Fn>{std::forward<Fn>(fn)};
 }
 
-class ExpressionParams
+class ExpressionParams : public CppStreamManip
 {
 public:
     ExpressionParams(const OutParams& p)
         : m_params(&p)
-    {       
+    {
     }
-    
+
     ~ExpressionParams()
     {
         if (m_stream != nullptr)
             m_stream->ResetParams(m_params);
     }
-    
+
     friend auto& operator << (CppSourceStream& s, const ExpressionParams& m)
     {
         m.m_stream = &s;
@@ -93,16 +101,9 @@ public:
 private:
     const OutParams* m_params;
     mutable CppSourceStream* m_stream = nullptr;
-        
+
 };
 } // detail
-
-/*inline CppSourceStream& new_line(CppSourceStream& s)*/
-//{
-    //s << "\n";
-    //s.WriteIndent();
-    //return s;
-/*}*/
 
 inline auto new_line(int extra)
 {
@@ -178,18 +179,18 @@ public:
         params.m_paramsPtr = nullptr;
     }
     ScopedParams(const ScopedParams&) = delete;
-    
+
     ~ScopedParams()
     {
         if (m_stream != nullptr)
             m_stream->ResetParams(m_paramsPtr);
     }
-    
+
     OutParams& GetParams()
     {
         return *m_paramsPtr;
     }
-    
+
     auto& operator[](const std::string& key)
     {
         return (*m_paramsPtr)[key];
@@ -201,7 +202,7 @@ private:
     OutParams* m_paramsPtr;
 };
 
-class StreamScope
+class StreamScope : public detail::CppStreamManip
 {
 public:
     StreamScope(std::string prefix, std::string suffix, int indent = 1)
@@ -221,7 +222,7 @@ public:
             m_scopeSuffix.erase(m_scopeSuffix.begin());
         }
     }
-    
+
     ~StreamScope()
     {
         if (m_stream != nullptr)
@@ -229,11 +230,11 @@ public:
             m_stream->Indent(-m_indentLevel);
             if (m_suffixOnNewLine)
                 (*m_stream) << new_line(1);
-            
+
             (*m_stream) << m_scopeSuffix;
         }
     }
-    
+
 private:
     std::string m_scopePrefix;
     std::string m_scopeSuffix;
@@ -241,7 +242,7 @@ private:
     mutable CppSourceStream* m_stream = nullptr;
     bool m_prefixOnNewLine = true;
     bool m_suffixOnNewLine = true;
-    
+
     friend CppSourceStream& operator << (CppSourceStream& stream, const StreamScope& scope)
     {
         scope.m_stream = &stream;
@@ -261,15 +262,15 @@ public:
         , m_bracePrefix(std::move(bracePrefix))
     {
     }
-    
+
     BracedStreamScope(std::string braceSuffix)
         : BracedStreamScope("", std::move(braceSuffix))
-    {        
+    {
     }
-    
+
 private:
     std::string m_bracePrefix;
-    
+
     friend CppSourceStream& operator << (CppSourceStream& stream, const BracedStreamScope& scope)
     {
         stream << scope.m_bracePrefix;
