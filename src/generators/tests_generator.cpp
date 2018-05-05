@@ -98,30 +98,30 @@ void TestsGenerator::WriteTestHelperClass(CppSourceStream& os, reflection::Class
             {"className", classInfo->GetScopedName()},
         });
 
-    os << out::new_line << "class $className$TestHelper";
+    os << out::new_line(1) << "class $className$TestHelper";
     out::BracedStreamScope declBody("", ";\n");
     os << declBody;
     os << out::new_line(-1) << "public:";
-    os << out::new_line << "static bool IsDefault(const $className$& obj)";
+    os << out::new_line(1) << "static bool IsDefault(const $className$& obj)";
     {
         out::BracedStreamScope funcBody("", "\n");
         os << funcBody;
-        os << out::new_line << "$className$ defValue{};";
-        os << out::new_line << "return AreEqual(defValue, obj);";
+        os << out::new_line(1) << "$className$ defValue{};";
+        os << out::new_line(1) << "return AreEqual(defValue, obj);";
     }
-    os << out::new_line << "static bool AreEqual(const $className$& expected, const $className$& value)";
+    os << out::new_line(1) << "static bool AreEqual(const $className$& expected, const $className$& value)";
     {
         out::BracedStreamScope funcBody("", "\n");
         os << funcBody;
-        os << out::new_line << "bool result = true;";
+        os << out::new_line(1) << "bool result = true;";
         for (auto& member : classInfo->members)
         {
             auto left = "expected." + member->name;
             auto right = "value." + member->name;
-            os << out::new_line << "result &= " << left << " == " << right << ";";
+            os << out::new_line(1) << "result &= " << left << " == " << right << ";";
             m_implGenerator->WriteExpectEqual(os, left, right);
         }
-        os << out::new_line << "return result;";
+        os << out::new_line(1) << "return result;";
     }
 }
 
@@ -217,7 +217,7 @@ void TestsGenerator::WriteCtorTestCases(CppSourceStream& os, reflection::ClassIn
 
     if (generator == nullptr)
     {
-        os << out::new_line << "// No generator for " << methodInfo->GetFullQualifiedName(false);
+        os << out::new_line(1) << "// No generator for " << methodInfo->GetFullQualifiedName(false);
         return;
     }
 
@@ -355,40 +355,40 @@ void TestsGenerator::WriteDefaultConstructorTestImpl(CppSourceStream& os, reflec
 {
     if (testType != TestType::BasicPositive)
     {
-        os << out::new_line << "// Nothing to do here";
+        os << out::new_line(1) << "// Nothing to do here";
         return;
     }
-    os << out::new_line << classInfo->name << " value{};";
-    os << out::new_line << "// Expectations for default object state go here";
+    os << out::new_line(1) << classInfo->name << " value{};";
+    os << out::new_line(1) << "// Expectations for default object state go here";
 }
 
 void TestsGenerator::WriteCopyConstructorTestImpl(CppSourceStream& os, reflection::ClassInfoPtr classInfo, reflection::MethodInfoPtr methodInfo, TestsGenerator::TestType testType)
 {
     if (testType != TestType::BasicPositive)
     {
-        os << out::new_line << "// Nothing to do here";
+        os << out::new_line(1) << "// Nothing to do here";
         return;
     }
 
-    os << out::new_line << classInfo->name << " initValue{};";
-    os << out::new_line << "// Special initialization goes here";
-    os << out::new_line << out::new_line << classInfo->name << " newValue(initValue);";
+    os << out::new_line(1) << classInfo->name << " initValue{};";
+    os << out::new_line(1) << "// Special initialization goes here";
+    os << out::new_line(2) << classInfo->name << " newValue(initValue);";
     m_implGenerator->WriteExpectExprIsTrue(os, classInfo->name + "TestHelper::AreEqual(initValue, newValue)");
-//    os << out::new_line << "// Test initValue and newValue are the same";
+//    os << out::new_line(1) << "// Test initValue and newValue are the same";
 }
 
 void TestsGenerator::WriteMoveConstructorTestImpl(CppSourceStream& os, reflection::ClassInfoPtr classInfo, reflection::MethodInfoPtr methodInfo, TestsGenerator::TestType testType)
 {
     if (testType != TestType::BasicPositive)
     {
-        os << out::new_line << "// Nothing to do here";
+        os << out::new_line(1) << "// Nothing to do here";
         return;
     }
 
-    os << out::new_line << classInfo->name << " initValue{};";
-    os << out::new_line << "// Special initialization goes here";
-    os << out::new_line << classInfo->name << " initValueCopy(initValue);";
-    os << out::new_line << out::new_line << classInfo->name << " newValue(std::move(initValue));";
+    os << out::new_line(1) << classInfo->name << " initValue{};";
+    os << out::new_line(1) << "// Special initialization goes here";
+    os << out::new_line(1) << classInfo->name << " initValueCopy(initValue);";
+    os << out::new_line(2) << classInfo->name << " newValue(std::move(initValue));";
     m_implGenerator->WriteExpectExprIsTrue(os, classInfo->name + "TestHelper::AreEqual(initValueCopy, newValue)");
     m_implGenerator->WriteExpectExprIsTrue(os, classInfo->name + "TestHelper::IsDefault(initValue)");
 }

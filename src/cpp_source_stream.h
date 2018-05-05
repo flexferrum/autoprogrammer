@@ -7,6 +7,7 @@
 #include <utility>
 
 #include <boost/iostreams/filtering_stream.hpp>
+#include <boost/type_traits/has_left_shift.hpp>
 
 namespace codegen 
 {
@@ -41,7 +42,7 @@ private:
     
     template<typename Val>
     friend auto operator << (CppSourceStream& stream, Val&& val) 
-            -> std::enable_if_t<!std::is_convertible<decltype(stream << val), CppSourceStream&>::value, CppSourceStream&>
+            -> std::enable_if_t<boost::has_left_shift<CppSourceStream, Val, CppSourceStream>::value, CppSourceStream&>
     {
         static_cast<boost::iostreams::filtering_ostream&>(stream) << std::forward<Val>(val);
         return stream;
@@ -96,12 +97,12 @@ private:
 };
 } // detail
 
-inline CppSourceStream& new_line(CppSourceStream& s)
-{
-    s << "\n";
-    s.WriteIndent();
-    return s;
-}
+/*inline CppSourceStream& new_line(CppSourceStream& s)*/
+//{
+    //s << "\n";
+    //s.WriteIndent();
+    //return s;
+/*}*/
 
 inline auto new_line(int extra)
 {
@@ -227,7 +228,7 @@ public:
         {
             m_stream->Indent(-m_indentLevel);
             if (m_suffixOnNewLine)
-                (*m_stream) << new_line;
+                (*m_stream) << new_line(1);
             
             (*m_stream) << m_scopeSuffix;
         }
@@ -245,7 +246,7 @@ private:
     {
         scope.m_stream = &stream;
         if (scope.m_prefixOnNewLine)
-            stream << new_line;
+            stream << new_line(1);
         stream << scope.m_scopePrefix;
         stream.Indent(scope.m_indentLevel);
         return stream;

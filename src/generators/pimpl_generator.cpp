@@ -90,7 +90,7 @@ void PimplGenerator::WritePimplImplementation(CppSourceStream& os, reflection::C
             WriteCtorImplementation(os, classInfo, methodInfo);
         else if (methodInfo->isDtor)
         {
-            os << out::new_line;
+            os << out::new_line(1);
             if (methodInfo->isNoExcept)
                 os << methodInfo->GetScopedName() << "() noexcept = default;\n";
             else
@@ -106,7 +106,7 @@ void PimplGenerator::WriteCtorImplementation(CppSourceStream& os, reflection::Cl
     if (methodInfo->isImplicit)
         return;
 
-    os << out::new_line << methodInfo->GetScopedName() << "(";
+    os << out::new_line(1) << methodInfo->GetScopedName() << "(";
     WriteSeq(os, methodInfo->params, ", ", [](auto&& os, const reflection::MethodParamInfo& param) {os << param.fullDecl;});
     os << ")";
     if (methodInfo->isNoExcept)
@@ -128,8 +128,8 @@ void PimplGenerator::WriteCtorImplementation(CppSourceStream& os, reflection::Cl
             os << param.name;
     });
     os << ")";
-    os << out::new_line << "{";
-    os << out::new_line << "}\n";
+    os << out::new_line(1) << "{";
+    os << out::new_line(1) << "}\n";
 }
 
 void PimplGenerator::WriteMethodImplementation(CppSourceStream& os, reflection::ClassInfoPtr classInfo, reflection::MethodInfoPtr methodInfo)
@@ -137,7 +137,7 @@ void PimplGenerator::WriteMethodImplementation(CppSourceStream& os, reflection::
     if (methodInfo->isImplicit || methodInfo->isStatic)
         return;
 
-    os << out::new_line << methodInfo->returnType->getPrintedName() << " " << methodInfo->GetScopedName() << "(";
+    os << out::new_line(1) << methodInfo->returnType->getPrintedName() << " " << methodInfo->GetScopedName() << "(";
     WriteSeq(os, methodInfo->params, ", ", [](auto&& os, const reflection::MethodParamInfo& param) {os << param.fullDecl;});
     os << ")";
     if (methodInfo->isConst)
@@ -146,7 +146,7 @@ void PimplGenerator::WriteMethodImplementation(CppSourceStream& os, reflection::
         os << " noexcept";
     out::BracedStreamScope body("", "\n");
     os << body;
-    os << out::new_line;
+    os << out::new_line(1);
     const reflection::BuiltinType* retType = methodInfo->returnType->getAsBuiltin();
     if (retType == nullptr || retType->type != reflection::BuiltinType::Void)
         os << "return ";

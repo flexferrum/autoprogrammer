@@ -104,29 +104,29 @@ void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
         auto scopedParams = MakeScopedParams(hdrOs, enumInfo);
 
         {
-            hdrOs << out::new_line << "template<>";
+            hdrOs << out::new_line(1) << "template<>";
             out::BracedStreamScope body("inline const char* flex_lib::Enum2String($enumFullQualifiedName$ e)", "\n");
-            hdrOs << out::new_line << body;
-            hdrOs << out::new_line << "return $namespaceQual$::$enumName$ToString(e);";
+            hdrOs << out::new_line(1) << body;
+            hdrOs << out::new_line(1) << "return $namespaceQual$::$enumName$ToString(e);";
         }
         {
-            hdrOs << out::new_line << "template<>";
+            hdrOs << out::new_line(1) << "template<>";
             out::BracedStreamScope body("inline $enumFullQualifiedName$ flex_lib::String2Enum<$enumFullQualifiedName$>(const char* itemName)", "\n");
-            hdrOs << out::new_line << body;
-            hdrOs << out::new_line << "return $namespaceQual$::StringTo$enumName$(itemName);";
+            hdrOs << out::new_line(1) << body;
+            hdrOs << out::new_line(1) << "return $namespaceQual$::StringTo$enumName$(itemName);";
         }
     }
     {
         out::BracedStreamScope flNs("\nnamespace std", "\n\n", 0);
-        hdrOs << out::new_line << flNs;
+        hdrOs << out::new_line(1) << flNs;
 
         for (reflection::EnumInfoPtr enumInfo : enums)
         {
             auto scopedParams = MakeScopedParams(hdrOs, enumInfo);
 
             out::BracedStreamScope body("inline std::string to_string($enumFullQualifiedName$ e)", "\n");
-            hdrOs << out::new_line << body;
-            hdrOs << out::new_line << "return $namespaceQual$::$enumName$ToString(e);";
+            hdrOs << out::new_line(1) << body;
+            hdrOs << out::new_line(1) << "return $namespaceQual$::$enumName$ToString(e);";
         }
     }
 }
@@ -137,20 +137,21 @@ void Enum2StringGenerator::WriteEnumToStringConversion(CppSourceStream &hdrOs, c
     auto scopedParams = MakeScopedParams(hdrOs, enumDescr);
 
     out::BracedStreamScope fnScope("inline const char* $enumName$ToString($enumScopedName$ e)", "\n");
-    hdrOs << out::new_line << fnScope;
+    hdrOs << out::new_line(1) << fnScope;
     {
         out::BracedStreamScope switchScope("switch (e)", "\n");
-        hdrOs << out::new_line << switchScope;
+        hdrOs << out::new_line(1) << switchScope;
         out::OutParams innerParams;
         for (auto& i : enumDescr->items)
         {
             innerParams["itemName"] = i.itemName;
             hdrOs << out::with_params(innerParams)
-                  << out::new_line(-1) << "case $prefix$$itemName$:"
-                  << out::new_line << "return \"$itemName$\";";
+                  << out::new_line(-1) << "case $prefix$$itemName$:";
+            hdrOs
+                  << out::new_line(1) << "return \"$itemName$\";";
         }
     }
-    hdrOs << out::new_line << "return \"Unknown Item\";";
+    hdrOs << out::new_line(1) << "return \"Unknown Item\";";
 }
 
 // String to enum conversion writer
@@ -159,10 +160,10 @@ void Enum2StringGenerator::WriteEnumFromStringConversion(CppSourceStream &hdrOs,
     auto params = MakeScopedParams(hdrOs, enumDescr);
 
     out::BracedStreamScope fnScope("inline $enumScopedName$ StringTo$enumName$(const char* itemName)", "\n");
-    hdrOs << out::new_line << fnScope;
+    hdrOs << out::new_line(1) << fnScope;
     {
         out::BracedStreamScope itemsScope("static std::pair<const char*, $enumScopedName$> items[] = ", ";\n");
-        hdrOs << out::new_line << itemsScope;
+        hdrOs << out::new_line(1) << itemsScope;
 
         out::OutParams& innerParams = params.GetParams();
         auto items = enumDescr->items;
@@ -170,7 +171,7 @@ void Enum2StringGenerator::WriteEnumFromStringConversion(CppSourceStream &hdrOs,
         for (auto& i : items)
         {
             innerParams["itemName"] = i.itemName;
-            hdrOs << out::with_params(innerParams) << out::new_line << "{\"$itemName$\", $prefix$$itemName$},";
+            hdrOs << out::with_params(innerParams) << out::new_line(1) << "{\"$itemName$\", $prefix$$itemName$},";
         }
     }
 
