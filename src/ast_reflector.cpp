@@ -19,7 +19,7 @@ auto FindExisting(const Cont& cont, const std::string& qualifiedName)
          [&qualifiedName](auto& item) {return item->decl->getQualifiedNameAsString() == qualifiedName;});
 
 
-    return p == end(cont) ? Cont::value_type() : *p;
+    return p == end(cont) ? typename Cont::value_type() : *p;
 }
 
 AccessType ConvertAccessType(clang::AccessSpecifier access)
