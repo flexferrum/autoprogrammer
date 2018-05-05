@@ -62,7 +62,7 @@ void WriteNamespaceContents(codegen::CppSourceStream &hdrOs, reflection::Namespa
     
     out::BracedStreamScope nsScope("namespace " + ns->name, "", 0);
     if (!ns->isRootNamespace)
-        hdrOs << out::new_line << nsScope;
+        hdrOs << out::new_line(1) << nsScope;
     
     fn(hdrOs, ns);
     for (auto& inner : ns->innerNamespaces)
