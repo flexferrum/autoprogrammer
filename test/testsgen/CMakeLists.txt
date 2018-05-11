@@ -23,13 +23,21 @@ add_custom_command(OUTPUT ${TESTS_GEN_HDRFILE01} ${TESTS_GEN_SRCFILE01}
     COMMENT "Generating test cases for ${CMAKE_CURRENT_SOURCE_DIR}/testclasses_01.h"
     )
 
+if (UNIX)
+    include(CMakeFindDependencyMacro)
+    find_dependency(Threads)
+    set (EXTRA_TEST_LIBS "Threads::Threads")
+endif ()
+
 add_executable(${PROJECT_NAME}
     ${Sources}
     ${Headers}
     ${TESTS_GEN_HDRFILE01}
     ${TESTS_GEN_SRCFILE01}
     )
+    
+message (STATUS "EXTRA_TEST_LIBS: ${EXTRA_TEST_LIBS}")
 
-target_link_libraries(${PROJECT_NAME} ${GTEST_BOTH_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${GTEST_BOTH_LIBRARIES} ${EXTRA_TEST_LIBS})
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})

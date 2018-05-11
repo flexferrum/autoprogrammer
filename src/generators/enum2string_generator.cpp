@@ -99,22 +99,27 @@ void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
 
     hdrOs << "\n\n";
 
-    for (reflection::EnumInfoPtr enumInfo : enums)
     {
-        auto scopedParams = MakeScopedParams(hdrOs, enumInfo);
+        out::BracedStreamScope flNs("\nnamespace flex_lib", "\n\n", 0);
+        hdrOs << out::new_line(1) << flNs;
 
+        for (reflection::EnumInfoPtr enumInfo : enums)
         {
-            hdrOs << out::new_line(1) << "template<>";
-            out::BracedStreamScope body("inline const char* flex_lib::Enum2String($enumFullQualifiedName$ e)", "\n");
-            hdrOs << out::new_line(1) << body;
-            hdrOs << out::new_line(1) << "return $namespaceQual$::$enumName$ToString(e);";
-        }
-        {
-            hdrOs << out::new_line(1) << "template<>";
-            out::BracedStreamScope body("inline $enumFullQualifiedName$ flex_lib::String2Enum<$enumFullQualifiedName$>(const char* itemName)", "\n");
-            hdrOs << out::new_line(1) << body;
-            hdrOs << out::new_line(1) << "return $namespaceQual$::StringTo$enumName$(itemName);";
-        }
+            auto scopedParams = MakeScopedParams(hdrOs, enumInfo);
+        
+            {
+                hdrOs << out::new_line(1) << "template<>";
+                out::BracedStreamScope body("inline const char* Enum2String($enumFullQualifiedName$ e)", "\n");
+                hdrOs << out::new_line(1) << body;
+                hdrOs << out::new_line(1) << "return $namespaceQual$::$enumName$ToString(e);";
+            }
+            {
+                hdrOs << out::new_line(1) << "template<>";
+                out::BracedStreamScope body("inline $enumFullQualifiedName$ String2Enum<$enumFullQualifiedName$>(const char* itemName)", "\n");
+                hdrOs << out::new_line(1) << body;
+                hdrOs << out::new_line(1) << "return $namespaceQual$::StringTo$enumName$(itemName);";
+            }
+        }        
     }
     {
         out::BracedStreamScope flNs("\nnamespace std", "\n\n", 0);

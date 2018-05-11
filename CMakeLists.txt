@@ -106,6 +106,8 @@ message (STATUS ">>>>> CMAKE_CXX_FLAGS : ${CMAKE_CXX_FLAGS}")
 message (STATUS ">>>>> CMAKE_CXX_FLAGS_RELEASE : ${CMAKE_CXX_FLAGS_RELEASE}")
 message (STATUS ">>>>> CMAKE_CXX_FLAGS_RELWITHDEBINFO : ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
+enable_testing()
+
 add_subdirectory(test)
 
 install(TARGETS ${CODEGEN_BIN_NAME}

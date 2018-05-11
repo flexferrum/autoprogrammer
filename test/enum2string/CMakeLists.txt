@@ -21,12 +21,18 @@ add_custom_command(OUTPUT ${ENUM_CONV_FILE}
     COMMENT "Generating enum2string converters for ${CMAKE_CURRENT_SOURCE_DIR}/test_enums.h"
     )
 
+if (UNIX)
+    include(CMakeFindDependencyMacro)
+    find_dependency(Threads)
+    set (EXTRA_TEST_LIBS "Threads::Threads")
+endif ()
+
 add_executable(${PROJECT_NAME}
     ${Sources}
     ${Headers}
     ${ENUM_CONV_FILE}
     )
 
-target_link_libraries(${PROJECT_NAME} ${GTEST_BOTH_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${GTEST_BOTH_LIBRARIES} ${EXTRA_TEST_LIBS})
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})

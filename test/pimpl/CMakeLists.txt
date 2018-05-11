@@ -21,12 +21,18 @@ add_custom_command(OUTPUT ${PIMPL_GEN_FILE}
     COMMENT "Generating pimpl default implementation for ${CMAKE_CURRENT_SOURCE_DIR}/test_pimpl.h"
     )
 
+if (UNIX)
+    include(CMakeFindDependencyMacro)
+    find_dependency(Threads)
+    set (EXTRA_TEST_LIBS "Threads::Threads")
+endif ()
+
 add_executable(${PROJECT_NAME}
     ${Sources}
     ${Headers}
     ${PIMPL_GEN_FILE}
     )
 
-target_link_libraries(${PROJECT_NAME} GTest::GTest GTest::Main)
+target_link_libraries(${PROJECT_NAME} GTest::GTest GTest::Main ${EXTRA_TEST_LIBS})
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})
