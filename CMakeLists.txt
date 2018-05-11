@@ -96,7 +96,7 @@ target_link_libraries(${CODEGEN_BIN_NAME}
     ${Boost_LIBRARIES}
 #    Jinja2CppLight
     )
-    
+
 get_target_property(CODEGEN_COMPILE_OPTIONS ${CODEGEN_BIN_NAME} COMPILE_FLAGS)
 string (REPLACE "-fno-rtti" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
 string (REPLACE "-fno-exceptions" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
