@@ -10,15 +10,10 @@ set(BOOST_ROOT $ENV{BOOST_DIR} CACHE PATH "Path to boost library root")
 set(CXX_STANDARD "14" CACHE STRING "C++ standard conformance for library build")
 
 set(CODEGEN_BIN_NAME "fl-codegen")
-set(LLVM_INSTALL_ROOT $ENV{LLVM_ROOT} CACHE PATH "Path to LLVM installation root directory")
-set(LLVM_SOURCES_ROOT $ENV{LLVM_ROOT} CACHE PATH "Path to LLVM sources root directory")
 
-list (APPEND CMAKE_MODULE_PATH ${LLVM_INSTALL_ROOT}/lib/cmake/llvm)
-list (APPEND CMAKE_MODULE_PATH ${LLVM_INSTALL_ROOT}/lib/cmake/clang)
+include (configure_llvm_dev)
 
 include(collect_sources)
-include(AddLLVM)
-include(ClangConfig)
 
 if(NOT "${GTEST_ROOT}" STREQUAL "")
     list (APPEND CMAKE_PREFIX_PATH ${GTEST_ROOT})
