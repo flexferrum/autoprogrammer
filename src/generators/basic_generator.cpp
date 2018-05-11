@@ -64,9 +64,9 @@ bool BasicGenerator::GenerateOutput(const clang::ASTContext* astContext, clang::
     if (!m_options.outputHeaderName.empty())
     {
         result = GenerateOutputFile(m_options.outputHeaderName, "fl-codegen-output-header.h", astContext, sourceManager, [this](auto& stream) {
-            WriteHeaderPreamble(stream);
-            WriteHeaderContent(stream);
-            WriteHeaderPostamble(stream);
+            this->WriteHeaderPreamble(stream);
+            this->WriteHeaderContent(stream);
+            this->WriteHeaderPostamble(stream);
 
             return true;
         });
@@ -77,9 +77,9 @@ bool BasicGenerator::GenerateOutput(const clang::ASTContext* astContext, clang::
     if (!m_options.outputSourceName.empty())
     {
         result = GenerateOutputFile(m_options.outputSourceName, "fl-codegen-output-source.cpp", astContext, sourceManager, [this](auto& stream) {
-            WriteSourcePreamble(stream);
-            WriteSourceContent(stream);
-            WriteSourcePostamble(stream);
+            this->WriteSourcePreamble(stream);
+            this->WriteSourceContent(stream);
+            this->WriteSourcePostamble(stream);
 
             return true;
         });
