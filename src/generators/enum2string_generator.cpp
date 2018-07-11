@@ -31,6 +31,23 @@ struct TypeReflection<reflection::EnumInfo> : TypeReflected<reflection::EnumInfo
 };
 
 template<>
+struct TypeReflection<reflection::NamespaceInfo> : TypeReflected<reflection::NamespaceInfo>
+{
+    static auto& GetAccessors()
+    {
+        static std::unordered_map<std::string, FieldAccessor> accessors = {
+            {"name", [](const reflection::NamespaceInfo& obj) {return Reflect(obj.name);}},
+            {"scopeSpecifier", [](const reflection::NamespaceInfo& obj) {return Reflect(obj.scopeSpecifier);}},
+            {"namespaceQualifier", [](const reflection::NamespaceInfo& obj) { return obj.namespaceQualifier;}},
+            {"enums", [](const reflection::NamespaceInfo& obj) {return Reflect(obj.enums);}},
+            {"namespaces", [](const reflection::NamespaceInfo& obj) {return Reflect(obj.innerNamespaces);}}
+        };
+
+        return accessors;
+    }
+};
+
+template<>
 struct TypeReflection<reflection::EnumItemInfo> : TypeReflected<reflection::EnumItemInfo>
 {
     static auto& GetAccessors()
@@ -51,31 +68,19 @@ namespace
 DeclarationMatcher enumMatcher =
         enumDecl().bind("enum");
 
-auto g_enum2stringTemplatePreamble =
+auto g_enum2stringTemplate =
 R"(
-{# #ifndef {{HeaderGuard}}
- #define {{HeaderGuard}} #}
- #pragma once
-
-{% for fileName in inputFiles %}
- #include "{{fileName}}"
-{% endfor %}
-
-{% for fileName in extraHeaders %}
-{% if fileName is startsWith('<') %}
- #include fileName
-{% else %}
- #include "fileName"
-{% endif %}
-{% endfor %}
-
+{% extends "header_skeleton.j2tpl" %}
+{% block generator_headers %}
  #include <flex_lib/stringized_enum.h>
  #include <algorithm>
  #include <utility>
-)";
+{% endblock %}
 
-auto g_enumConverters =
-R"(
+{% block namespaced_decls %}{{super()}}{% endblock %}
+
+{% block namespace_content %}
+{% for enum in ns.enums | sort(attribute="name") %}
 {% set enumName = enum.name %}
 {% set scopeSpec = enum.scopeSpecifier %}
 {% set namespaceQual = enum.namespaceQualifier %}
@@ -85,9 +90,9 @@ inline const char* {{enumName}}ToString({{enumScopedName}} e)
 {
     switch (e)
     {
-{% for item in enum.items %}
-    case {{prefix}}{{item.itemName}}:
-        return "{{item.itemName}}";
+{% for itemName in enum.items | map(attribute="itemName") | sort%}
+    case {{prefix}}{{itemName}}:
+        return "{{itemName}}";
 {% endfor %}
     }
     return "Unknown Item";
@@ -96,8 +101,8 @@ inline const char* {{enumName}}ToString({{enumScopedName}} e)
 inline {{enumScopedName}} StringTo{{enumName}}(const char* itemName)
 {
     static std::pair<const char*, {{enumScopedName}}> items[] = {
-{% for item in enum.items | sort (attribute='itemName') %}
-        {"{{item.itemName}}", {{prefix}}{{item.itemName}} } {{',' if not loop.last }}
+{% for itemName in enum.items | map(attribute="itemName") | sort %}
+        {"{{itemName}}", {{prefix}}{{itemName}} } {{',' if not loop.last }}
 {% endfor %}
     };
 
@@ -107,10 +112,9 @@ inline {{enumScopedName}} StringTo{{enumName}}(const char* itemName)
 
     return result;
 }
-)";
+{% endfor %}{% endblock %}
 
-auto g_flConverterInvokers =
-R"(
+{% block global_decls %}
 template<>
 inline const char* flex_lib::Enum2String({{enumFullQualifiedName}} e)
 {
@@ -122,24 +126,22 @@ inline {{enumFullQualifiedName}} flex_lib::String2Enum<{{enumFullQualifiedName}}
 {
     return {{enum.namespaceQualifier}}::StringTo{{enum.name}}(itemName);
 }
-)";
 
-auto g_stdConverterInvokers =
-R"(
 inline std::string to_string({{enumFullQualifiedName}} e)
 {
     return {{enum.namespaceQualifier}}::{{enum.name}}ToString(e);
 }
+{% endblock %}
 )";
 }
 
 Enum2StringGenerator::Enum2StringGenerator(const Options &opts)
     : BasicGenerator(opts)
 {
-    m_headerPreambleTpl.Load(g_enum2stringTemplatePreamble);
-    m_convertersTpl.Load(g_enumConverters);
-    m_flConverterInvokers.Load(g_flConverterInvokers);
-    m_stdConverterInvokers.Load(g_stdConverterInvokers);
+//    m_headerPreambleTpl.Load(g_enum2stringTemplatePreamble);
+//    m_convertersTpl.Load(g_enumConverters);
+//    m_flConverterInvokers.Load(g_flConverterInvokers);
+//    m_stdConverterInvokers.Load(g_stdConverterInvokers);
 }
 
 void Enum2StringGenerator::SetupMatcher(clang::ast_matchers::MatchFinder &finder, clang::ast_matchers::MatchFinder::MatchCallback *defaultCallback)
@@ -195,6 +197,19 @@ jinja2::ValuesMap MakeScopedParams(reflection::EnumInfoPtr enumInfo)
 
 void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
 {
+    jinja2::Template tpl(&m_templateEnv);
+    tpl.Load(g_enum2stringTemplate);
+
+    jinja2::ValuesMap params = {
+        {"inputFiles", jinja2::Reflect(m_options.inputFiles)},
+        {"HeaderGuard", GetHeaderGuard(m_options.outputHeaderName)},
+        {"rootNamespace", jinja2::Reflect(m_namespaces.GetRootNamespace())}
+    };
+
+    SetupCommonTemplateParams(params);
+
+    tpl.Render(hdrOs, params);
+#if 0
     std::vector<reflection::EnumInfoPtr> enums;
     WriteNamespaceContents(hdrOs, m_namespaces.GetRootNamespace(), [this, &enums, &hdrOs](CppSourceStream &os, reflection::NamespaceInfoPtr ns) {
         for (auto& enumInfo : ns->enums)
@@ -219,6 +234,7 @@ void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
         m_stdConverterInvokers.Render(hdrOs, MakeScopedParams(enumInfo));
     }
     hdrOs << "\n}\n\n";
+#endif
 }
 } // codegen
 
