@@ -43,7 +43,7 @@ R"(
 
 {% block generator_headers %}{% endblock %}
 
-{# block namespaced_decls #}
+{% block namespaced_decls %}
 {% set ns = rootNamespace %}
 {#ns | pprint}}
 {{rootNamespace | pprint#}
@@ -54,7 +54,7 @@ R"(
 {{ loop(ns.namespaces) }}
 }
 {% endfor %}
-{# endblock #}
+{% endblock %}
 
 {% block global_decls %}{% endblock %}
 

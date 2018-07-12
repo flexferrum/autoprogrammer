@@ -24,6 +24,7 @@ struct TypeReflection<reflection::EnumInfo> : TypeReflected<reflection::EnumInfo
             {"namespaceQualifier", [](const reflection::EnumInfo& obj) { return obj.namespaceQualifier;}},
             {"isScoped", [](const reflection::EnumInfo& obj) {return obj.isScoped;}},
             {"items", [](const reflection::EnumInfo& obj) {return Reflect(obj.items);}},
+            {"fullQualifiedName", [](const reflection::EnumInfo& obj) {return obj.GetFullQualifiedName(false);}},
         };
 
         return accessors;
@@ -83,10 +84,10 @@ R"(
 {% for enum in ns.enums | sort(attribute="name") %}
 {% set enumName = enum.name %}
 {% set scopeSpec = enum.scopeSpecifier %}
-{% set namespaceQual = enum.namespaceQualifier %}
-{% set prefix = enumScopedName + '::' if not enumInfo.isScoped else enumScopedName + '::' + scopeSpec + ('' if not scopeSpec else '::') %}
+{% set scopedName = scopeSpec ~ ('::' if scopeSpec) ~ enumName %}
+{% set prefix = (scopedName + '::') if not enumInfo.isScoped else (scopedName ~ '::' ~ scopeSpec ~ ('::' if scopeSpec)) %}
 
-inline const char* {{enumName}}ToString({{enumScopedName}} e)
+inline const char* {{enumName}}ToString({{scopedName}} e)
 {
     switch (e)
     {
@@ -98,15 +99,15 @@ inline const char* {{enumName}}ToString({{enumScopedName}} e)
     return "Unknown Item";
 }
 
-inline {{enumScopedName}} StringTo{{enumName}}(const char* itemName)
+inline {{scopedName}} StringTo{{enumName}}(const char* itemName)
 {
-    static std::pair<const char*, {{enumScopedName}}> items[] = {
+    static std::pair<const char*, {{scopedName}}> items[] = {
 {% for itemName in enum.items | map(attribute="itemName") | sort %}
         {"{{itemName}}", {{prefix}}{{itemName}} } {{',' if not loop.last }}
 {% endfor %}
     };
 
-    {{enumScopedName}} result;
+    {{scopedName}} result;
     if (!flex_lib::detail::String2Enum(itemName, items, result))
          flex_lib::bad_enum_name::Throw(itemName, "{{enumName}}");
 
@@ -115,22 +116,28 @@ inline {{enumScopedName}} StringTo{{enumName}}(const char* itemName)
 {% endfor %}{% endblock %}
 
 {% block global_decls %}
+{% for ns in [rootNamespace] recursive %}
+{% for enum in ns.enums %}
+
 template<>
-inline const char* flex_lib::Enum2String({{enumFullQualifiedName}} e)
+inline const char* flex_lib::Enum2String({{enum.fullQualifiedName}} e)
 {
     return {{enum.namespaceQualifier}}::{{enum.name}}ToString(e);
 }
 
 template<>
-inline {{enumFullQualifiedName}} flex_lib::String2Enum<{{enumFullQualifiedName}}>(const char* itemName)
+inline {{enum.fullQualifiedName}} flex_lib::String2Enum<{{enum.fullQualifiedName}}>(const char* itemName)
 {
     return {{enum.namespaceQualifier}}::StringTo{{enum.name}}(itemName);
 }
 
-inline std::string to_string({{enumFullQualifiedName}} e)
+inline std::string to_string({{enum.fullQualifiedName}} e)
 {
     return {{enum.namespaceQualifier}}::{{enum.name}}ToString(e);
 }
+{% endfor %}
+{{loop(ns.namespaces)}}
+{% endfor %}
 {% endblock %}
 )";
 }
