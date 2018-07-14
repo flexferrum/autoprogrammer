@@ -43,15 +43,7 @@ find_package(Boost)
 message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_ID}")
 message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_VERSION}")
 
-if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang" OR ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU")
-    if (${CXX_STANDARD} STREQUAL "17" OR ${CXX_STANDARD} STREQUAL "1z")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-        message(STATUS "FlexLib is building with C++17 enabled")
-    else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-        message(STATUS "FlexLib is building with C++14 enabled")
-    endif()
-endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LLVM_CXXFLAGS}")
 
 CollectSources(Sources Headers ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
@@ -63,11 +55,17 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
     message(STATUS "CodeGenerator is compiled with enabled exceptions")
 endif()
 
+find_dependency(Threads)
+
 add_subdirectory(thirdparty)
 
 include_directories(
+    SYSTEM
     ${CLANG_INCLUDE_DIRS}
     ${LLVM_INCLUDE_DIRS}
+    )
+
+include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${GTEST_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
@@ -85,22 +83,35 @@ target_compile_options(${CODEGEN_BIN_NAME}
 )
 
 target_link_libraries(${CODEGEN_BIN_NAME}
-    clangAST
-    clangBasic
-    clangDriver
-    clangFrontend
+    clangFormat
+    clangASTMatchers
+    clangTooling
+    clangToolingCore
     clangRewriteFrontend
     clangStaticAnalyzerFrontend
+    clangFrontend
     clangTooling
     clangFormat
+    clangDriver
+    clangSerialization
+    clangParse
+    clangSema
+    clangAnalysis
+    clangEdit
+    clangAST
+    clangLex
+    clangBasic
+    clangRewrite
+    ${EXTRA_LIBS}
     ${Boost_LIBRARIES}
+    Threads::Threads
 #    Jinja2CppLight
     )
 
 get_target_property(CODEGEN_COMPILE_OPTIONS ${CODEGEN_BIN_NAME} COMPILE_FLAGS)
 string (REPLACE "-fno-rtti" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
 string (REPLACE "-fno-exceptions" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
-set_target_properties(${CODEGEN_BIN_NAME} PROPERTIES COMPILE_FLAGS "${CODEGEN_COMPILE_OPTIONS}")
+# set_target_properties(${CODEGEN_BIN_NAME} PROPERTIES COMPILE_FLAGS "${CODEGEN_COMPILE_OPTIONS}")
 message (STATUS ">>>>> CODEGEN_COMPILE_OPTIONS : ${CODEGEN_COMPILE_OPTIONS}")
 message (STATUS ">>>>> CMAKE_CXX_FLAGS : ${CMAKE_CXX_FLAGS}")
 message (STATUS ">>>>> CMAKE_CXX_FLAGS_RELEASE : ${CMAKE_CXX_FLAGS_RELEASE}")
