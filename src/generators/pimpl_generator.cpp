@@ -41,7 +41,7 @@ void PimplGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::MatchRe
 
         auto ci = reflector.ReflectClass(decl, &m_namespaces);
 
-        std::cout << "### Pimpl declaration found: " << ci->GetFullQualifiedName(false) << std::endl;
+        std::cout << "### Pimpl declaration found: " << ci->GetFullQualifiedName() << std::endl;
     }
 }
 

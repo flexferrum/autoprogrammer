@@ -2,65 +2,13 @@
 #include "options.h"
 #include "ast_reflector.h"
 #include "ast_utils.h"
-
-#include <jinja2cpp/reflected_value.h>
+#include "jinja2_reflection.h"
 
 #include <clang/ASTMatchers/ASTMatchers.h>
 
 #include <iostream>
 
 using namespace clang::ast_matchers;
-
-namespace jinja2
-{
-template<>
-struct TypeReflection<reflection::EnumInfo> : TypeReflected<reflection::EnumInfo>
-{
-    static auto& GetAccessors()
-    {
-        static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"name", [](const reflection::EnumInfo& obj) {return Reflect(obj.name);}},
-            {"scopeSpecifier", [](const reflection::EnumInfo& obj) {return Reflect(obj.scopeSpecifier);}},
-            {"namespaceQualifier", [](const reflection::EnumInfo& obj) { return obj.namespaceQualifier;}},
-            {"isScoped", [](const reflection::EnumInfo& obj) {return obj.isScoped;}},
-            {"items", [](const reflection::EnumInfo& obj) {return Reflect(obj.items);}},
-            {"fullQualifiedName", [](const reflection::EnumInfo& obj) {return obj.GetFullQualifiedName(false);}},
-        };
-
-        return accessors;
-    }
-};
-
-template<>
-struct TypeReflection<reflection::NamespaceInfo> : TypeReflected<reflection::NamespaceInfo>
-{
-    static auto& GetAccessors()
-    {
-        static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"name", [](const reflection::NamespaceInfo& obj) {return Reflect(obj.name);}},
-            {"scopeSpecifier", [](const reflection::NamespaceInfo& obj) {return Reflect(obj.scopeSpecifier);}},
-            {"namespaceQualifier", [](const reflection::NamespaceInfo& obj) { return obj.namespaceQualifier;}},
-            {"enums", [](const reflection::NamespaceInfo& obj) {return Reflect(obj.enums);}},
-            {"namespaces", [](const reflection::NamespaceInfo& obj) {return Reflect(obj.innerNamespaces);}}
-        };
-
-        return accessors;
-    }
-};
-
-template<>
-struct TypeReflection<reflection::EnumItemInfo> : TypeReflected<reflection::EnumItemInfo>
-{
-    static auto& GetAccessors()
-    {
-        static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"itemName", [](const reflection::EnumItemInfo& obj) {return Reflect(obj.itemName);}},
-        };
-
-        return accessors;
-    }
-};
-} // jinja2
 
 namespace codegen
 {
@@ -145,10 +93,6 @@ inline std::string to_string({{enum.fullQualifiedName}} e)
 Enum2StringGenerator::Enum2StringGenerator(const Options &opts)
     : BasicGenerator(opts)
 {
-//    m_headerPreambleTpl.Load(g_enum2stringTemplatePreamble);
-//    m_convertersTpl.Load(g_enumConverters);
-//    m_flConverterInvokers.Load(g_flConverterInvokers);
-//    m_stdConverterInvokers.Load(g_stdConverterInvokers);
 }
 
 void Enum2StringGenerator::SetupMatcher(clang::ast_matchers::MatchFinder &finder, clang::ast_matchers::MatchFinder::MatchCallback *defaultCallback)
@@ -183,25 +127,6 @@ void Enum2StringGenerator::WriteHeaderPostamble(CppSourceStream &hdrOs)
 //    hdrOs << out::scope_exit;
 }
 
-namespace
-{
-jinja2::ValuesMap MakeScopedParams(reflection::EnumInfoPtr enumInfo)
-{
-    std::string scopeSpec = enumInfo->scopeSpecifier;
-    std::string scopedName =  scopeSpec + (scopeSpec.empty() ? "" : "::") + enumInfo->name;
-    std::string fullQualifiedName = enumInfo->GetFullQualifiedName(false);
-
-    jinja2::ValuesMap params = {
-        {"enum", jinja2::Reflect(enumInfo)},
-        {"enumScopedName", scopedName},
-        {"enumFullQualifiedName", fullQualifiedName},
-    };
-
-    return params;
-}
-
-}
-
 void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
 {
     jinja2::Template tpl(&m_templateEnv);
@@ -209,39 +134,13 @@ void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
 
     jinja2::ValuesMap params = {
         {"inputFiles", jinja2::Reflect(m_options.inputFiles)},
-        {"HeaderGuard", GetHeaderGuard(m_options.outputHeaderName)},
+        {"headerGuard", GetHeaderGuard(m_options.outputHeaderName)},
         {"rootNamespace", jinja2::Reflect(m_namespaces.GetRootNamespace())}
     };
 
     SetupCommonTemplateParams(params);
 
     tpl.Render(hdrOs, params);
-#if 0
-    std::vector<reflection::EnumInfoPtr> enums;
-    WriteNamespaceContents(hdrOs, m_namespaces.GetRootNamespace(), [this, &enums, &hdrOs](CppSourceStream &os, reflection::NamespaceInfoPtr ns) {
-        for (auto& enumInfo : ns->enums)
-        {
-            m_convertersTpl.Render(hdrOs, MakeScopedParams(enumInfo));
-
-            enums.push_back(enumInfo);
-        }
-    });
-
-    hdrOs << "\n\n";
-
-    for (reflection::EnumInfoPtr enumInfo : enums)
-    {
-        m_flConverterInvokers.Render(hdrOs, MakeScopedParams(enumInfo));
-    }
-
-    hdrOs << "\nnamespace std {\n";
-
-    for (reflection::EnumInfoPtr enumInfo : enums)
-    {
-        m_stdConverterInvokers.Render(hdrOs, MakeScopedParams(enumInfo));
-    }
-    hdrOs << "\n}\n\n";
-#endif
 }
 } // codegen
 

@@ -135,7 +135,11 @@ ClassInfoPtr AstReflector::ReflectClass(const CXXRecordDecl* decl, NamespacesTre
         classInfo->hasDefinition = true;
         for (auto& base : decl->bases())
         {
-            ;
+            ClassInfo::BaseInfo baseInfo;
+            baseInfo.isVirtual = base.isVirtual();
+            baseInfo.accessType = ConvertAccessType(base.getAccessSpecifier());
+            baseInfo.baseClass = TypeInfo::Create(base.getType(), m_astContext);
+            classInfo->baseClasses.push_back(std::move(baseInfo));
         }
     }
 
@@ -150,7 +154,7 @@ void AstReflector::ReflectImplicitSpecialMembers(const CXXRecordDecl* decl, Clas
     auto setupImplicitMember = [this, decl, classInfo](const std::string& name)
     {
         MethodInfoPtr methodInfo = std::make_shared<MethodInfo>();
-        methodInfo->scopeSpecifier = classInfo->GetFullQualifiedName(false);
+        methodInfo->scopeSpecifier = classInfo->GetFullQualifiedName();
         methodInfo->namespaceQualifier = classInfo->namespaceQualifier;
         methodInfo->name = name;
         methodInfo->accessType = AccessType::Public;

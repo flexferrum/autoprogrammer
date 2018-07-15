@@ -20,6 +20,7 @@ using namespace llvm;
 
 extern codegen::GeneratorPtr CreateEnum2StringGen(const codegen::Options&);
 extern codegen::GeneratorPtr CreatePimplGen(const codegen::Options&);
+extern codegen::GeneratorPtr CreateJinja2ReflectGen(const codegen::Options&);
 extern codegen::GeneratorPtr CreateTestGen(const codegen::Options&);
 
 namespace
@@ -50,6 +51,7 @@ cl::opt<codegen::GeneratorId> GenerationMode(cl::desc("Choose generation mode:")
   cl::values(
         clEnumValN(codegen::GeneratorId::Enum2StringGen, "gen-enum2string" , "Enum2string conversion generation"),
         clEnumValN(codegen::GeneratorId::PimplGen, "gen-pimpl" , "Pimpl wrapper classes generation"),
+        clEnumValN(codegen::GeneratorId::Jinja2ReflectGen, "gen-jinja2reflect" , "Jinja2 reflection generation"),
         clEnumValN(codegen::GeneratorId::TestsGen, "gen-tests" , "Test cases generation")
     ), cl::Required, cl::cat(CodeGenCategory));
 
@@ -106,6 +108,7 @@ cl::extrahelp MoreHelp("\nCode generation tool help text...");
 std::vector<std::pair<codegen::GeneratorId, codegen::GeneratorFactory>> GenFactories = {
     {codegen::GeneratorId::Enum2StringGen, CreateEnum2StringGen},
     {codegen::GeneratorId::PimplGen, CreatePimplGen},
+    {codegen::GeneratorId::Jinja2ReflectGen, CreateJinja2ReflectGen},
     {codegen::GeneratorId::TestsGen, CreateTestGen},
 };
 }

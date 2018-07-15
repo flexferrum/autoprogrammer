@@ -41,10 +41,10 @@ struct NamedDeclInfo
 
         return result;
     }
-    std::string GetFullQualifiedName(bool includeGlobalScope = true) const
+    std::string GetFullQualifiedName() const
     {
         auto fqScope = GetFullQualifiedScope();
-        const char* prefix = includeGlobalScope || !fqScope.empty() ? "::" : "";
+        const char* prefix = !fqScope.empty() ? "::" : "";
         return !name.empty() ? fqScope + prefix + name : "";
     }
     std::string GetScopedName() const
@@ -145,7 +145,7 @@ struct ClassInfo : public NamedDeclInfo, public LocationInfo
 {
     struct BaseInfo
     {
-        TypeInfo baseClass;
+        TypeInfoPtr baseClass;
         AccessType accessType;
         bool isVirtual;
     };

@@ -8,7 +8,7 @@
 #include <boost/variant.hpp>
 #include <memory>
 
-namespace reflection 
+namespace reflection
 {
 class TypeInfo;
 using TypeInfoPtr = std::shared_ptr<TypeInfo>;
@@ -38,14 +38,14 @@ struct BuiltinType
         Nullptr,
         Extended
     };
-    
+
     enum SignType
     {
         Signed,
         Unsigned,
         NoSign
     };
-    
+
     Types type = Unspecified;
     SignType isSigned = NoSign;
     int bits = 0;
@@ -69,7 +69,7 @@ struct TemplateType
         TemplateExpansionTplArg,
         PackTplArg
     };
-    
+
     struct GenericArg
     {
         GenericArg(TplArgKind k = UnknownTplArg)
@@ -84,7 +84,7 @@ struct TemplateType
     std::vector<TplArg> arguments;
     TypeInfoPtr aliasedType;
     const clang::NamedDecl* decl;
-    
+
     auto GetTypeArg(int idx) const
     {
         const TypeInfoPtr* result = boost::get<TypeInfoPtr>(&arguments[idx]);
@@ -112,7 +112,7 @@ struct WellKnownType : TemplateType
         BoostOptional,
         BoostVariant
     };
-    
+
     Types type = StdString;
 };
 
@@ -124,17 +124,17 @@ struct ArrayType
 
 struct EnumType
 {
-    const clang::EnumDecl* decl; 
+    const clang::EnumDecl* decl;
 };
 
 class TypeInfo
 {
 public:
     using Type = boost::variant<NoType, BuiltinType, RecordType, TemplateType, WellKnownType, ArrayType, EnumType>;
-    
+
     TypeInfo();
-    
-    const auto& GetType() {return m_type;}
+
+    const auto& GetType() const {return m_type;}
     auto getAsBuiltin() const
     {
         return boost::get<const BuiltinType>(&m_type);
@@ -163,7 +163,7 @@ public:
     {
         return boost::get<const NoType>(&m_type) != nullptr;
     }
-    
+
     bool getIsConst() const
     {
         return m_isConst;
@@ -209,48 +209,48 @@ public:
         struct Visitor : public boost::static_visitor<bool>
         {
             Visitor(const TypeInfo* ti) : m_type(ti) {}
-            
+
             bool operator() (const NoType&) const {return false;}
             bool operator() (const BuiltinType&) const {return false;}
             bool operator() (const ArrayType&) const {return false;}
             bool operator() (const EnumType&) const {return false;}
-            
+
             bool operator() (const RecordType&) const
             {
                 if (m_type->m_isRVReference)
                     return true;
-                
+
                 if (m_type->m_isConst)
                     return false;
-                
+
                 if (m_type->m_pointingLevels != 0)
                     return false;
                 // clang::CXXRecordDecl
                 return true;
             }
-            
+
             bool operator() (const TemplateType&) const
             {
                 if (m_type->m_isRVReference)
                     return true;
-                
+
                 if (m_type->m_isConst || m_type->m_isReference)
                     return false;
-                
+
                 if (m_type->m_pointingLevels != 0)
                     return false;
                 // clang::CXXRecordDecl
                 return true;
             }
-            
+
             const TypeInfo* m_type;
         };
-        
+
         return boost::apply_visitor(Visitor(this), m_type);
     }
-    
+
     static TypeInfoPtr Create(const clang::QualType& qt, const clang::ASTContext* astContext);
-    
+
 private:
     bool m_isConst = false;
     bool m_isVolatile = false;
@@ -263,14 +263,14 @@ private:
     std::string m_printedName;
     Type m_type;
     const clang::Type* m_typeDecl;
-    
+
     friend class TypeUnwrapper;
-    
+
     friend std::ostream& operator << (std::ostream& os, const TypeInfoPtr& tp)
     {
         os << "(" << tp->m_printedName << ")-" << tp->m_type;
         const char* suffix = " ";
-        auto print = [&os, &suffix](bool flag, auto msg) 
+        auto print = [&os, &suffix](bool flag, auto msg)
         {
             if (flag)
             {
@@ -278,8 +278,8 @@ private:
                 suffix = ", ";
             }
         };
-        
-        print(tp->m_isConst, "const");        
+
+        print(tp->m_isConst, "const");
         print(tp->m_isVolatile, "volatile");
         print(tp->m_isReference, "&");
         print(tp->m_isRVReference, "&&");
