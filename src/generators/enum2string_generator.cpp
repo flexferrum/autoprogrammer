@@ -67,24 +67,30 @@ inline {{scopedName}} StringTo{{enumName}}(const char* itemName)
 {% for ns in [rootNamespace] recursive %}
 {% for enum in ns.enums %}
 
+namespace flex_lib
+{
 template<>
-inline const char* flex_lib::Enum2String({{enum.fullQualifiedName}} e)
+inline const char* Enum2String({{enum.fullQualifiedName}} e)
 {
     return {{enum.namespaceQualifier}}::{{enum.name}}ToString(e);
 }
 
 template<>
-inline {{enum.fullQualifiedName}} flex_lib::String2Enum<{{enum.fullQualifiedName}}>(const char* itemName)
+inline {{enum.fullQualifiedName}} String2Enum<{{enum.fullQualifiedName}}>(const char* itemName)
 {
     return {{enum.namespaceQualifier}}::StringTo{{enum.name}}(itemName);
 }
+}
 
+namespace std
+{
 inline std::string to_string({{enum.fullQualifiedName}} e)
 {
     return {{enum.namespaceQualifier}}::{{enum.name}}ToString(e);
 }
+}
 {% endfor %}
-{{loop(ns.namespaces)}}
+{{loop(ns.innerNamespaces)}}
 {% endfor %}
 {% endblock %}
 )";

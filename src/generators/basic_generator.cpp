@@ -22,11 +22,11 @@ namespace codegen
 {
 auto g_headerSkeleton =
 R"(
-{% if HeaderGuard is defined %}
+{% if headerGuard is defined %}
  #ifndef {{headerGuard}}
  #define {{headerGuard}}
 {% else %}
- #pragma once
+ #pragma once1234
 {% endif %}
 
 {% for fileName in inputFiles | sort %}
@@ -45,20 +45,20 @@ R"(
 
 {% block namespaced_decls %}
 {% set ns = rootNamespace %}
-{#ns | pprint}}
-{{rootNamespace | pprint#}
+{#ns | pprint}
+{{rootNamespace | pprint} #}
 {% block namespace_content scoped %}{%endblock%}
-{% for ns in rootNamespace.namespaces recursive %}namespace {{ns.name}}
+{% for ns in rootNamespace.innerNamespaces recursive %}namespace {{ns.name}}
 {
 {{self.namespace_content()}}
-{{ loop(ns.namespaces) }}
+{{ loop(ns.innerNamespaces) }}
 }
 {% endfor %}
 {% endblock %}
 
 {% block global_decls %}{% endblock %}
 
-{% if HeaderGuard is defined %}
+{% if headerGuard is defined %}
  #endif // {{headerGuard}}
 {% endif %}
 )";

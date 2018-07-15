@@ -28,6 +28,6 @@ add_library(Jinja2Cpp STATIC
 target_include_directories(Jinja2Cpp INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/Jinja2Cpp/include)
 
 add_executable(jinja2cpp_unittests ${TestSources} ${TestHeaders})
-target_link_libraries(jinja2cpp_unittests ${GTEST_BOTH_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(jinja2cpp_unittests ${GTEST_BOTH_LIBRARIES} Boost::system Boost::filesystem Threads::Threads)
 target_link_libraries(jinja2cpp_unittests Jinja2Cpp)
 
