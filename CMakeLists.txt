@@ -38,7 +38,6 @@ message(STATUS "FlexLib library search path: ${FlexLib_DIR}")
 set (FLEXLIB_INCLUDE_DIR ${FlexLib_DIR}/include)
 
 find_package(GTest)
-find_package(Boost REQUIRED system filesystem)
 
 message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_ID}")
 message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_VERSION}")
