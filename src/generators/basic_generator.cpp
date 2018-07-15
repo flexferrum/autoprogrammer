@@ -23,8 +23,8 @@ namespace codegen
 auto g_headerSkeleton =
 R"(
 {% if HeaderGuard is defined %}
- #ifndef {{HeaderGuard}}
- #define {{HeaderGuard}}
+ #ifndef {{headerGuard}}
+ #define {{headerGuard}}
 {% else %}
  #pragma once
 {% endif %}
@@ -59,7 +59,7 @@ R"(
 {% block global_decls %}{% endblock %}
 
 {% if HeaderGuard is defined %}
- #endif // {{HeaderGuard}}
+ #endif // {{headerGuard}}
 {% endif %}
 )";
 

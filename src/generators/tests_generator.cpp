@@ -48,7 +48,7 @@ void TestsGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::MatchRe
 
         auto ci = reflector.ReflectClass(decl, &m_namespaces);
 
-        std::cout << "### Declaration of class for test found: " << ci->GetFullQualifiedName(false) << std::endl;
+        std::cout << "### Declaration of class for test found: " << ci->GetFullQualifiedName() << std::endl;
         std::cout << "### Methods found: " << std::endl;
         for (auto& methodInfo : ci->methods)
         {
@@ -217,7 +217,7 @@ void TestsGenerator::WriteCtorTestCases(CppSourceStream& os, reflection::ClassIn
 
     if (generator == nullptr)
     {
-        os << out::new_line << "// No generator for " << methodInfo->GetFullQualifiedName(false);
+        os << out::new_line << "// No generator for " << methodInfo->GetFullQualifiedName();
         return;
     }
 

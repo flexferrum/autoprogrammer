@@ -21,6 +21,7 @@ enum class GeneratorId
     Unknown = -1,
     Enum2StringGen,
     PimplGen,
+    Jinja2ReflectGen,
     TestsGen
 };
 
