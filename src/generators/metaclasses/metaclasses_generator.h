@@ -20,6 +20,10 @@ public:
     // BasicGenerator interface
 protected:
     void WriteHeaderContent(CppSourceStream& hdrOs) override;
+
+private:
+    reflection::NamespacesTree m_namespaces;
+
 };
 
 } // codegen

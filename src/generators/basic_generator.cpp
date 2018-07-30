@@ -26,7 +26,7 @@ R"(
  #ifndef {{headerGuard}}
  #define {{headerGuard}}
 {% else %}
- #pragma once1234
+ #pragma once
 {% endif %}
 
 {% for fileName in inputFiles | sort %}
