@@ -22,7 +22,8 @@ enum class GeneratorId
     Enum2StringGen,
     PimplGen,
     Jinja2ReflectGen,
-    TestsGen
+    TestsGen,
+    MetaclassesGen
 };
 
 enum class TestEngine

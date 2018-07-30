@@ -1,7 +1,7 @@
 #ifndef TESTS_GENERATOR_H
 #define TESTS_GENERATOR_H
 
-#include "basic_generator.h"
+#include "generators/basic_generator.h"
 #include "decls_reflection.h"
 
 namespace codegen
@@ -18,7 +18,6 @@ public:
     TestsGenerator(const Options& opts);
 
     // GeneratorBase interface
-public:
     void SetupMatcher(clang::ast_matchers::MatchFinder& finder, clang::ast_matchers::MatchFinder::MatchCallback* defaultCallback) override;
     void HandleMatch(const clang::ast_matchers::MatchFinder::MatchResult& matchResult) override;
 
