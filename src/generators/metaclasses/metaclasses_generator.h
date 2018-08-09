@@ -17,9 +17,11 @@ public:
     void HandleMatch(const clang::ast_matchers::MatchFinder::MatchResult& matchResult) override;
     bool Validate() override;
 
-    // BasicGenerator interface
 protected:
+    // BasicGenerator interface
     void WriteHeaderContent(CppSourceStream& hdrOs) override;
+
+    void ProcessMetaclassDecl(reflection::ClassInfoPtr classInfo, const clang::ASTContext* astContext);
 
 private:
     reflection::NamespacesTree m_namespaces;

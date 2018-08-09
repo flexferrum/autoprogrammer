@@ -154,6 +154,27 @@ struct ClassInfo : public NamedDeclInfo, public LocationInfo
     {
         using DeclType = boost::variant<ClassInfoPtr, EnumInfoPtr>;
 
+        auto AsClassInfo() const
+        {
+            ClassInfoPtr def;
+            auto ptr = boost::get<ClassInfoPtr>(&innerDecl);
+            if (!ptr)
+                return def;
+            return *ptr;
+        }
+
+        auto AsEnumInfo() const
+        {
+            EnumInfoPtr def;
+            auto ptr = boost::get<EnumInfoPtr>(&innerDecl);
+            if (!ptr)
+                return def;
+            return *ptr;
+        }
+
+        bool IsClass() const {return innerDecl.which() == 0;}
+        bool IsEnum() const {return innerDecl.which() == 1;}
+
         DeclType innerDecl;
         AccessType acessType;
     };

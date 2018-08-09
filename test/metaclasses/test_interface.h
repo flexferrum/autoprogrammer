@@ -8,6 +8,20 @@
 
 METACLASS_DECL(Interface)
 {
+    static void GenerateDecl()
+    {
+        compiler.require($Interface.variables().empty(), "Interface may not contain data members");
+
+        for (auto& f : $Interface.functions())
+        {
+            compiler.require(!f.is_copy() && !f.is_move(), "Interface can't contain copy or move constructor");
+            if (!f.has_access())
+                f.make_public();
+
+            compiler.require(f.is_public(), "Inteface function must be public");
+            f.make_pure_virtual();
+        }
+    }
 };
 
 METACLASS_INST(Interface, TestIface)

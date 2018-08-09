@@ -91,6 +91,9 @@ ClassInfoPtr AstReflector::ReflectClass(const CXXRecordDecl* decl, NamespacesTre
     NamespaceInfoPtr ns;
     ClassInfoPtr classInfo;
 
+    if (decl->hasDefinition())
+        decl = decl->getDefinition();
+
     if (nsTree)
     {
         ns = nsTree->GetNamespace(nsContext);
@@ -107,29 +110,29 @@ ClassInfoPtr AstReflector::ReflectClass(const CXXRecordDecl* decl, NamespacesTre
     classInfo->isUnion = decl->isUnion();
     classInfo->location = GetLocation(decl, m_astContext);
 
-    ReflectImplicitSpecialMembers(decl, classInfo.get(), nsTree);
-
-    for (auto methodDecl : decl->methods())
-    {
-        MethodInfoPtr methodInfo = ReflectMethod(methodDecl, nsTree);
-        classInfo->methods.push_back(methodInfo);
-    }
-
-    for (auto memberDecl : decl->fields())
-    {
-        if (memberDecl->isAnonymousStructOrUnion())
-            continue;
-
-        auto memberInfo = std::make_shared<MemberInfo>();
-        SetupNamedDeclInfo(memberDecl, memberInfo.get(), m_astContext);
-        memberInfo->type = TypeInfo::Create(memberDecl->getType(), m_astContext);
-        // memberInfo->isStatic = memberDecl->isStatic();
-        memberInfo->accessType = ConvertAccessType(memberDecl->getAccess());
-        classInfo->members.push_back(memberInfo);
-    }
-
     if (decl->hasDefinition())
     {
+        ReflectImplicitSpecialMembers(decl, classInfo.get(), nsTree);
+
+        for (auto methodDecl : decl->methods())
+        {
+            MethodInfoPtr methodInfo = ReflectMethod(methodDecl, nsTree);
+            classInfo->methods.push_back(methodInfo);
+        }
+
+        for (auto memberDecl : decl->fields())
+        {
+            if (memberDecl->isAnonymousStructOrUnion())
+                continue;
+
+            auto memberInfo = std::make_shared<MemberInfo>();
+            SetupNamedDeclInfo(memberDecl, memberInfo.get(), m_astContext);
+            memberInfo->type = TypeInfo::Create(memberDecl->getType(), m_astContext);
+            // memberInfo->isStatic = memberDecl->isStatic();
+            memberInfo->accessType = ConvertAccessType(memberDecl->getAccess());
+            classInfo->members.push_back(memberInfo);
+        }
+
         classInfo->isAbstract = decl->isAbstract();
         classInfo->isTrivial = decl->isTrivial();
         classInfo->hasDefinition = true;
@@ -140,6 +143,31 @@ ClassInfoPtr AstReflector::ReflectClass(const CXXRecordDecl* decl, NamespacesTre
             baseInfo.accessType = ConvertAccessType(base.getAccessSpecifier());
             baseInfo.baseClass = TypeInfo::Create(base.getType(), m_astContext);
             classInfo->baseClasses.push_back(std::move(baseInfo));
+        }
+
+        for (auto& d : decl->decls())
+        {
+            std::cout << "<><><><><><><><> " << classInfo->name << " :: " << d->getDeclKindName() << std::endl;
+            d->dump();
+            const clang::TagDecl* tagDecl = llvm::dyn_cast_or_null<TagDecl>(d);
+
+            if (!tagDecl || !(tagDecl->isRecord() || tagDecl->isEnum()))
+                continue;
+
+            ClassInfo::InnerDeclInfo declInfo;
+            const CXXRecordDecl* innerRec = nullptr;
+            if (tagDecl->isEnum())
+            {
+                auto ei = ReflectEnum(llvm::dyn_cast<EnumDecl>(tagDecl), nullptr);
+                declInfo.innerDecl = ei;
+            }
+            else if (innerRec = llvm::dyn_cast_or_null<CXXRecordDecl>(tagDecl))
+            {
+                auto ci = ReflectClass(innerRec, nullptr);
+                declInfo.innerDecl = ci;
+            }
+            declInfo.acessType = ConvertAccessType(tagDecl->getAccess());
+            classInfo->innerDecls.push_back(std::move(declInfo));
         }
     }
 
@@ -323,6 +351,24 @@ MethodInfoPtr AstReflector::ReflectMethod(const CXXMethodDecl* decl, NamespacesT
         paramInfo.fullDecl = EntityToString(param, m_astContext);
         methodInfo->params.push_back(std::move(paramInfo));
     }
+
+    const FunctionDecl* tplInst = decl->getTemplateInstantiationPattern();
+    if (tplInst != nullptr)
+        tplInst->dump();
+
+    tplInst = decl->getClassScopeSpecializationPattern();
+    if (tplInst != nullptr)
+        tplInst->dump();
+
+    tplInst = m_astContext->getClassScopeSpecializationPattern(decl);
+    if (tplInst != nullptr)
+        tplInst->dump();
+
+    tplInst = decl->getInstantiatedFromMemberFunction();
+    if (tplInst != nullptr)
+        tplInst->dump();
+
+    std::cout << "####@@@@ >> " << decl->getTemplatedKind() << std::endl;
 
     return methodInfo;
 }
