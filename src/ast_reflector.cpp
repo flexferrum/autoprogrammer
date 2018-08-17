@@ -147,8 +147,6 @@ ClassInfoPtr AstReflector::ReflectClass(const CXXRecordDecl* decl, NamespacesTre
 
         for (auto& d : decl->decls())
         {
-            std::cout << "<><><><><><><><> " << classInfo->name << " :: " << d->getDeclKindName() << std::endl;
-            d->dump();
             const clang::TagDecl* tagDecl = llvm::dyn_cast_or_null<TagDecl>(d);
 
             if (!tagDecl || !(tagDecl->isRecord() || tagDecl->isEnum()))

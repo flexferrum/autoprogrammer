@@ -30,8 +30,8 @@ public:
 class ClassInfo
 {
 public:
-    std::vector<VariableInfo> variables() const;
-    std::vector<MethodInfo> functions() const;
+    std::vector<VariableInfo>& variables() const;
+    std::vector<MethodInfo>& functions() const;
 };
 
 namespace detail
@@ -55,16 +55,17 @@ struct MetaClass_##ClassName : public meta::detail::MetaClassBase \
     \
     struct ClassName; \
 }; \
-\
+struct ClassName##_Meta; \
 struct MetaClass_##ClassName::ClassName
 
 #define METACLASS_INST(MetaName, InstClassName) \
-struct MetaClassInstance_##MetaName : public meta::detail::MetaClassImplBase \
+struct MetaClassInstance_##InstClassName : public meta::detail::MetaClassImplBase \
 { \
+    using Metaclass = MetaName##_Meta; \
     class InstClassName; \
 }; \
 \
-class MetaClassInstance_##MetaName::InstClassName
+class MetaClassInstance_##InstClassName::InstClassName
 
 #define META_INJECT [&]()
 

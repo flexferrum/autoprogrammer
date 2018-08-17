@@ -6,6 +6,7 @@
 #include <clang/ASTMatchers/ASTMatchers.h>
 
 using namespace clang::ast_matchers;
+using namespace clang;
 
 namespace codegen
 {
@@ -20,6 +21,30 @@ DeclarationMatcher metaclassesMatcher = anyOf(
 auto g_metaclassHdrTemplate =
 R"(
 {% extends "header_skeleton.j2tpl" %}
+
+{% block namespaced_decls %}{{super()}}{% endblock %}
+
+{% block namespace_content %}
+{% for class in ns.classes | sort(attribute="name") %}
+
+class {{ class.name }}
+{
+public:
+    {% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'equalto', 'Public') %}
+    {{ method.fullPrototype }};
+    {% endfor %}
+protected:
+    {% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'equalto', 'Protected') %}
+    {{ method.fullPrototype }};
+    {% endfor %}
+private:
+    {% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'in', ['Private', 'Undefined']) %}
+    {{ method.fullPrototype }};
+    {% endfor %}
+};
+
+{% endfor %}
+{% endblock %}
 )";
 }
 
@@ -57,6 +82,7 @@ void MetaclassesGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::M
             auto ci = reflector.ReflectClass(decl, &m_namespaces);
 
             std::cout << "### Implementation of metaclass found: " << ci->GetFullQualifiedName() << std::endl;
+            ProcessMetaclassImplDecl(ci, matchResult.Context);
         }
     }
 
@@ -90,13 +116,61 @@ void MetaclassesGenerator::ProcessMetaclassDecl(reflection::ClassInfoPtr classIn
     if (!metaClassInfo)
         return;
 
-    metaClassInfo->decl->dump();
+//    metaClassInfo->decl->dump();
 
     for (reflection::MethodInfoPtr mi : metaClassInfo->methods)
     {
         std::cout << "@@@@@@@@ Metaclass declaration method: " << mi->name << std::endl;
-        if (mi->decl && !mi->isImplicit)
-            mi->decl->dump();
+//        if (mi->decl && !mi->isImplicit)
+//            mi->decl->dump();
+//        if (mi->name == "GenerateDecl")
+//        {
+//            std::cout << ">>>> Generate declaration method found. Method AST:";
+//            mi->decl->dump();
+//        }
+    }
+}
+
+void MetaclassesGenerator::ProcessMetaclassImplDecl(reflection::ClassInfoPtr classInfo, const clang::ASTContext* astContext)
+{
+    const std::string metaclassNamePrefix = "MetaClassInstance_";
+    if (classInfo->name.find(metaclassNamePrefix) != 0)
+        return;
+
+    std::string metaclassName = classInfo->name.substr(metaclassNamePrefix.length());
+    std::cout << "####### Metaclass instance found: " << metaclassName << std::endl;
+
+    reflection::ClassInfoPtr instInfo;
+    for (auto& innerDecl : classInfo->innerDecls)
+    {
+        auto ci = innerDecl.AsClassInfo();
+        if (ci && ci->name == metaclassName && ci->hasDefinition)
+        {
+            instInfo = ci;
+            break;
+        }
+    }
+
+    if (!instInfo)
+        return;
+
+    const DeclContext* nsContext = classInfo->decl->getEnclosingNamespaceContext();
+    auto ns = m_implNamespaces.GetNamespace(nsContext);
+    
+    auto instClassInfo = std::make_shared<reflection::ClassInfo>();
+    *static_cast<reflection::NamedDeclInfo*>(instClassInfo.get()) = *static_cast<reflection::NamedDeclInfo*>(classInfo.get());
+    instClassInfo->name = instInfo->name;
+    ns->classes.push_back(instClassInfo);
+    
+    instClassInfo->methods.insert(instClassInfo->methods.end(), instInfo->methods.begin(), instInfo->methods.end());
+    
+    instInfo->decl->dump();
+
+    for (reflection::MethodInfoPtr mi : instInfo->methods)
+    {
+        std::cout << "@@@@@@@@ Metaclass instance method: " << mi->fullPrototype << std::endl;
+//        if (mi->decl && !mi->isImplicit)
+//            mi->decl->dump();
 //        if (mi->name == "GenerateDecl")
 //        {
 //            std::cout << ">>>> Generate declaration method found. Method AST:";
@@ -111,6 +185,9 @@ void MetaclassesGenerator::WriteHeaderContent(codegen::CppSourceStream& hdrOs)
     tpl.Load(g_metaclassHdrTemplate);
 
     jinja2::ValuesMap params = {
+        {"inputFiles", jinja2::Reflect(m_options.inputFiles)},
+        {"headerGuard", GetHeaderGuard(m_options.outputHeaderName)},
+        {"rootNamespace", jinja2::Reflect(m_implNamespaces.GetRootNamespace())}
     };
 
     SetupCommonTemplateParams(params);
