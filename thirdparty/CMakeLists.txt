@@ -6,6 +6,7 @@ include(collect_sources)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/Jinja2Cpp/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Jinja2Cpp/thirdparty/nonstd/expected-light/include
     ${Boost_INCLUDE_DIRS}
     ${GTEST_INCLUDE_DIRS}
     )
@@ -25,7 +26,11 @@ add_library(Jinja2Cpp STATIC
     ${PublicHeaders}
 )
 
-target_include_directories(Jinja2Cpp INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/Jinja2Cpp/include)
+target_include_directories(Jinja2Cpp
+    INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Jinja2Cpp/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/Jinja2Cpp/thirdparty/nonstd/expected-light/include
+        )
 
 # add_executable(jinja2cpp_unittests ${TestSources} ${TestHeaders})
 # target_link_libraries(jinja2cpp_unittests ${GTEST_BOTH_LIBRARIES} Boost::system Boost::filesystem Threads::Threads)

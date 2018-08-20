@@ -17,13 +17,13 @@ METACLASS_DECL(Interface)
             compiler.require(!f.is_copy() && !f.is_move(), "Interface can't contain copy or move constructor");
             if (!f.has_access())
                 f.make_public();
-                
+
             compiler.require(f.is_public(), "Inteface function must be public");
             f.make_pure_virtual();
         }
     }
-    
-    constexpr static int GenerateImpl()
+
+    static int GenerateImpl()
     {
         int a = 0;
         return a + 2;

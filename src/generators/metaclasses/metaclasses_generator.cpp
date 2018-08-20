@@ -27,20 +27,20 @@ R"(
 {% block namespace_content %}
 {% for class in ns.classes | sort(attribute="name") %}
 
+{% macro MethodsDecl(class, access) %}
+{% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'in', access) %}
+{{ method.fullPrototype }};
+{% endfor %}
+{% endmacro %}
+
 class {{ class.name }}
 {
 public:
-    {% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'equalto', 'Public') %}
-    {{ method.fullPrototype }};
-    {% endfor %}
+    {{ MethodsDecl(class, ['Public']) }}
 protected:
-    {% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'equalto', 'Protected') %}
-    {{ method.fullPrototype }};
-    {% endfor %}
+    {{ MethodsDecl(class, ['Protected']) }}
 private:
-    {% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'in', ['Private', 'Undefined']) %}
-    {{ method.fullPrototype }};
-    {% endfor %}
+    {{ MethodsDecl(class, ['Private', 'Undefined']) }}
 };
 
 {% endfor %}
@@ -156,14 +156,14 @@ void MetaclassesGenerator::ProcessMetaclassImplDecl(reflection::ClassInfoPtr cla
 
     const DeclContext* nsContext = classInfo->decl->getEnclosingNamespaceContext();
     auto ns = m_implNamespaces.GetNamespace(nsContext);
-    
+
     auto instClassInfo = std::make_shared<reflection::ClassInfo>();
     *static_cast<reflection::NamedDeclInfo*>(instClassInfo.get()) = *static_cast<reflection::NamedDeclInfo*>(classInfo.get());
     instClassInfo->name = instInfo->name;
     ns->classes.push_back(instClassInfo);
-    
+
     instClassInfo->methods.insert(instClassInfo->methods.end(), instInfo->methods.begin(), instInfo->methods.end());
-    
+
     instInfo->decl->dump();
 
     for (reflection::MethodInfoPtr mi : instInfo->methods)
