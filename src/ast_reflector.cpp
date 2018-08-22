@@ -84,6 +84,36 @@ EnumInfoPtr AstReflector::ReflectEnum(const clang::EnumDecl *decl, NamespacesTre
     return enumInfo;
 }
 
+TypedefInfoPtr AstReflector::ReflectTypedef(const TypedefNameDecl* decl, NamespacesTree* nsTree)
+{
+    const DeclContext* nsContext = decl->getDeclContext();
+
+    NamespaceInfoPtr ns;
+    TypedefInfoPtr typedefInfo;
+    if (nsTree != nullptr)
+    {
+        ns = nsTree->GetNamespace(nsContext);
+        typedefInfo = FindExisting(ns->typedefs, decl->getQualifiedNameAsString());
+    }
+
+    if (typedefInfo)
+        return typedefInfo;
+
+    // const NamedDecl* parentDecl = FindEnclosingOpaqueDecl(decl);
+
+    typedefInfo = std::make_shared<TypedefInfo>();
+    typedefInfo->decl = decl;
+    typedefInfo->location = GetLocation(decl, m_astContext);
+
+    SetupNamedDeclInfo(decl, typedefInfo.get(), m_astContext);
+    typedefInfo->aliasedType = TypeInfo::Create(decl->getUnderlyingType(), m_astContext);
+
+    if (ns)
+        ns->typedefs.push_back(typedefInfo);
+
+    return typedefInfo;
+}
+
 ClassInfoPtr AstReflector::ReflectClass(const CXXRecordDecl* decl, NamespacesTree* nsTree)
 {
     const DeclContext* nsContext = decl->getEnclosingNamespaceContext();
@@ -148,24 +178,37 @@ ClassInfoPtr AstReflector::ReflectClass(const CXXRecordDecl* decl, NamespacesTre
         for (auto& d : decl->decls())
         {
             const clang::TagDecl* tagDecl = llvm::dyn_cast_or_null<TagDecl>(d);
-
-            if (!tagDecl || !(tagDecl->isRecord() || tagDecl->isEnum()))
-                continue;
+            const clang::NamedDecl* namedDecl = llvm::dyn_cast_or_null<NamedDecl>(d);
 
             ClassInfo::InnerDeclInfo declInfo;
             const CXXRecordDecl* innerRec = nullptr;
-            if (tagDecl->isEnum())
+            const TypedefNameDecl* typeAliasDecl = nullptr;
+            bool processed = true;
+            if (tagDecl && tagDecl->isEnum())
             {
                 auto ei = ReflectEnum(llvm::dyn_cast<EnumDecl>(tagDecl), nullptr);
                 declInfo.innerDecl = ei;
             }
-            else if (innerRec = llvm::dyn_cast_or_null<CXXRecordDecl>(tagDecl))
+            else if ((innerRec = llvm::dyn_cast_or_null<CXXRecordDecl>(tagDecl)))
             {
                 auto ci = ReflectClass(innerRec, nullptr);
                 declInfo.innerDecl = ci;
             }
-            declInfo.acessType = ConvertAccessType(tagDecl->getAccess());
-            classInfo->innerDecls.push_back(std::move(declInfo));
+            else if ((typeAliasDecl = llvm::dyn_cast_or_null<TypedefNameDecl>(namedDecl)))
+            {
+                auto ti = ReflectTypedef(typeAliasDecl, nullptr);
+                declInfo.innerDecl = ti;
+            }
+            else
+            {
+                processed = false;
+            }
+
+            if (processed)
+            {
+                declInfo.acessType = ConvertAccessType(tagDecl ? tagDecl->getAccess() : namedDecl->getAccess());
+                classInfo->innerDecls.push_back(std::move(declInfo));
+            }
         }
     }
 
@@ -286,12 +329,12 @@ MethodInfoPtr AstReflector::ReflectMethod(const CXXMethodDecl* decl, NamespacesT
 
     const DeclContext* nsContext = decl->getEnclosingNamespaceContext();
 
-    NamespaceInfoPtr ns;
+    NamespaceInfoPtr ns = nullptr;
     if (nsTree)
     {
         ns = nsTree->GetNamespace(nsContext);
-        SetupNamedDeclInfo(decl, methodInfo.get(), m_astContext);
     }
+    SetupNamedDeclInfo(decl, methodInfo.get(), m_astContext);
 
     QualType fnQualType = decl->getType();
 
@@ -355,10 +398,6 @@ MethodInfoPtr AstReflector::ReflectMethod(const CXXMethodDecl* decl, NamespacesT
         tplInst->dump();
 
     tplInst = decl->getClassScopeSpecializationPattern();
-    if (tplInst != nullptr)
-        tplInst->dump();
-
-    tplInst = m_astContext->getClassScopeSpecializationPattern(decl);
     if (tplInst != nullptr)
         tplInst->dump();
 

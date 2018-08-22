@@ -141,6 +141,14 @@ struct MemberInfo : public NamedDeclInfo, public LocationInfo
 
 using MemberInfoPtr = std::shared_ptr<MemberInfo>;
 
+struct TypedefInfo : public NamedDeclInfo, public LocationInfo
+{
+    TypeInfoPtr aliasedType;
+    const clang::TypedefNameDecl* decl;
+};
+
+using TypedefInfoPtr = std::shared_ptr<TypedefInfo>;
+
 struct ClassInfo : public NamedDeclInfo, public LocationInfo
 {
     struct BaseInfo
@@ -152,7 +160,7 @@ struct ClassInfo : public NamedDeclInfo, public LocationInfo
 
     struct InnerDeclInfo
     {
-        using DeclType = boost::variant<ClassInfoPtr, EnumInfoPtr>;
+        using DeclType = boost::variant<ClassInfoPtr, EnumInfoPtr, TypedefInfoPtr>;
 
         auto AsClassInfo() const
         {
@@ -172,8 +180,18 @@ struct ClassInfo : public NamedDeclInfo, public LocationInfo
             return *ptr;
         }
 
+        auto AsTypedefInfo() const
+        {
+            TypedefInfoPtr def;
+            auto ptr = boost::get<TypedefInfoPtr>(&innerDecl);
+            if (!ptr)
+                return def;
+            return *ptr;
+        }
+
         bool IsClass() const {return innerDecl.which() == 0;}
         bool IsEnum() const {return innerDecl.which() == 1;}
+        bool IsTypedef() const {return innerDecl.which() == 2;}
 
         DeclType innerDecl;
         AccessType acessType;
@@ -215,6 +233,7 @@ struct NamespaceInfo : public NamedDeclInfo
     std::vector<NamespaceInfoPtr> innerNamespaces;
     std::vector<EnumInfoPtr> enums;
     std::vector<ClassInfoPtr> classes;
+    std::vector<TypedefInfoPtr> typedefs;
 
     const clang::NamespaceDecl *decl = nullptr;
 };

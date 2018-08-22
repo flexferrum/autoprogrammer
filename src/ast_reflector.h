@@ -9,12 +9,13 @@ namespace reflection
 class AstReflector
 {
 public:
-    explicit AstReflector(clang::ASTContext* context)
+    explicit AstReflector(const clang::ASTContext* context)
         : m_astContext(context)
     {
     }
 
     EnumInfoPtr ReflectEnum(const clang::EnumDecl* decl, NamespacesTree* nsTree);
+    TypedefInfoPtr ReflectTypedef(const clang::TypedefNameDecl* decl, NamespacesTree* nsTree);
     ClassInfoPtr ReflectClass(const clang::CXXRecordDecl* decl, NamespacesTree* nsTree);
     MethodInfoPtr ReflectMethod(const clang::CXXMethodDecl* decl, NamespacesTree* nsTree);
 
@@ -25,7 +26,7 @@ private:
     void ReflectImplicitSpecialMembers(const clang::CXXRecordDecl* decl, ClassInfo* classInfo, NamespacesTree* nsTree);
 
 private:
-    clang::ASTContext* m_astContext;
+    const clang::ASTContext* m_astContext;
 };
 
 } // reflection

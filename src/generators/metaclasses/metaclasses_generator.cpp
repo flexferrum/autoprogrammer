@@ -2,8 +2,11 @@
 #include "ast_reflector.h"
 #include "ast_utils.h"
 #include "jinja2_reflection.h"
+#include "cpp_interpreter.h"
 
 #include <clang/ASTMatchers/ASTMatchers.h>
+
+#include <boost/algorithm/string/predicate.hpp>
 
 using namespace clang::ast_matchers;
 using namespace clang;
@@ -29,7 +32,16 @@ R"(
 
 {% macro MethodsDecl(class, access) %}
 {% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'in', access) %}
-{{ method.fullPrototype }};
+    {{'explicit ' if method.isExplicitCtor}}
+    {{'virtual ' if method.isVirtual}}
+    {{'constexpr ' if method.isConstexpr}}
+    {{'static ' if method.isStatic}}
+    {{ method.returnType.printedName }} {{method.name}}({{method.params | map(attribute='fullDecl') | join(', ')}})
+    {{'const ' if method.isConst}}
+    {{'noexcept ' if method.isNoExcept}}
+    {{'= 0' if method.isPureVirtual}}
+    {{'= delete' if method.isDeleted}}
+    {{'= default' if method.isDefault}};
 {% endfor %}
 {% endmacro %}
 
@@ -61,6 +73,9 @@ void MetaclassesGenerator::SetupMatcher(clang::ast_matchers::MatchFinder& finder
 
 void MetaclassesGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::MatchResult& matchResult)
 {
+    if (m_astContext == nullptr)
+        m_astContext = matchResult.Context;
+
     if (const clang::CXXRecordDecl* decl = matchResult.Nodes.getNodeAs<clang::CXXRecordDecl>("MetaclassDecl"))
     {
         if (IsFromInputFiles(decl->getLocStart(), matchResult.Context))
@@ -88,11 +103,6 @@ void MetaclassesGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::M
 
 }
 
-bool MetaclassesGenerator::Validate()
-{
-    return true;
-}
-
 void MetaclassesGenerator::ProcessMetaclassDecl(reflection::ClassInfoPtr classInfo, const clang::ASTContext* astContext)
 {
     const std::string metaclassNamePrefix = "MetaClass_";
@@ -100,7 +110,12 @@ void MetaclassesGenerator::ProcessMetaclassDecl(reflection::ClassInfoPtr classIn
         return;
 
     std::string metaclassName = classInfo->name.substr(metaclassNamePrefix.length());
-    std::cout << "####### Metaclass found: " << metaclassName << std::endl;
+    reflection::NamedDeclInfo tmpInfo = *classInfo;
+    tmpInfo.name = metaclassName;
+    std::string fullMetaclassName =  tmpInfo.GetFullQualifiedName();
+    std::cout << "####### Metaclass found: " << fullMetaclassName << std::endl;
+
+    MetaclassInfo& metaclassInfo = m_metaclasses[fullMetaclassName];
 
     reflection::ClassInfoPtr metaClassInfo;
     for (auto& innerDecl : classInfo->innerDecls)
@@ -116,10 +131,16 @@ void MetaclassesGenerator::ProcessMetaclassDecl(reflection::ClassInfoPtr classIn
     if (!metaClassInfo)
         return;
 
+    metaclassInfo.metaclass = metaClassInfo;
 //    metaClassInfo->decl->dump();
 
     for (reflection::MethodInfoPtr mi : metaClassInfo->methods)
     {
+        if (mi->name == "GenerateDecl")
+            metaclassInfo.declGenMethod = mi;
+        else if (mi->name == "GenerateDef")
+            metaclassInfo.defGenMethod = mi;
+
         std::cout << "@@@@@@@@ Metaclass declaration method: " << mi->name << std::endl;
 //        if (mi->decl && !mi->isImplicit)
 //            mi->decl->dump();
@@ -133,36 +154,69 @@ void MetaclassesGenerator::ProcessMetaclassDecl(reflection::ClassInfoPtr classIn
 
 void MetaclassesGenerator::ProcessMetaclassImplDecl(reflection::ClassInfoPtr classInfo, const clang::ASTContext* astContext)
 {
+    reflection::AstReflector reflector(astContext);
+
     const std::string metaclassNamePrefix = "MetaClassInstance_";
     if (classInfo->name.find(metaclassNamePrefix) != 0)
         return;
 
     std::string metaclassName = classInfo->name.substr(metaclassNamePrefix.length());
-    std::cout << "####### Metaclass instance found: " << metaclassName << std::endl;
+
+    classInfo->decl->dump();
 
     reflection::ClassInfoPtr instInfo;
+    MetaclassInfo metaclassInfo;
     for (auto& innerDecl : classInfo->innerDecls)
     {
         auto ci = innerDecl.AsClassInfo();
         if (ci && ci->name == metaclassName && ci->hasDefinition)
         {
             instInfo = ci;
-            break;
+        }
+        auto ti = innerDecl.AsTypedefInfo();
+        if (ti && ti->name == "Metaclass")
+        {
+            const reflection::RecordType* recordType = ti->aliasedType->getAsRecord();
+            if (recordType == nullptr)
+                continue;
+            auto recordDecl = llvm::dyn_cast_or_null<CXXRecordDecl>(recordType->decl);
+            if (!recordDecl)
+                continue;
+
+            reflection::ClassInfoPtr ci = reflector.ReflectClass(recordDecl, nullptr);
+            std::string fullName = ci->GetFullQualifiedName();
+            fullName.erase(fullName.end() - 5, fullName.end());
+            std::cout << "######## Instance of metaclass " << fullName << std::endl;
+            auto p = m_metaclasses.find(fullName);
+            if (p == m_metaclasses.end())
+                return;
+            metaclassInfo = p->second;
         }
     }
 
     if (!instInfo)
         return;
 
+    std::cout << "####### Metaclass '" << metaclassInfo.metaclass->GetFullQualifiedName() << "' instance found: " << metaclassName << std::endl;
+
     const DeclContext* nsContext = classInfo->decl->getEnclosingNamespaceContext();
     auto ns = m_implNamespaces.GetNamespace(nsContext);
 
     auto instClassInfo = std::make_shared<reflection::ClassInfo>();
+    *static_cast<reflection::ClassInfo*>(instClassInfo.get()) = *static_cast<reflection::ClassInfo*>(instInfo.get());
     *static_cast<reflection::NamedDeclInfo*>(instClassInfo.get()) = *static_cast<reflection::NamedDeclInfo*>(classInfo.get());
+    *static_cast<reflection::LocationInfo*>(instClassInfo.get()) = *static_cast<reflection::LocationInfo*>(classInfo.get());
     instClassInfo->name = instInfo->name;
     ns->classes.push_back(instClassInfo);
 
-    instClassInfo->methods.insert(instClassInfo->methods.end(), instInfo->methods.begin(), instInfo->methods.end());
+    MetaclassImplInfo implInfo;
+    implInfo.metaclass = metaclassInfo.metaclass;
+    implInfo.impl = instClassInfo;
+    implInfo.implDecl = instInfo;
+    implInfo.declGenMethod = metaclassInfo.declGenMethod;
+    implInfo.defGenMethod = metaclassInfo.defGenMethod;
+
+    m_implsInfo.push_back(implInfo);
 
     instInfo->decl->dump();
 
@@ -177,6 +231,18 @@ void MetaclassesGenerator::ProcessMetaclassImplDecl(reflection::ClassInfoPtr cla
 //            mi->decl->dump();
 //        }
     }
+}
+
+bool MetaclassesGenerator::Validate()
+{
+    CppInterpreter interpreter(m_astContext);
+
+    for (auto& instInfo : m_implsInfo)
+    {
+        std::cout << ">>>>>> Processing metaclass instance '" << instInfo.impl->name << "' of '" << instInfo.metaclass->name << "'" << std::endl;
+        interpreter.Execute(instInfo.metaclass, instInfo.impl, instInfo.declGenMethod);
+    }
+    return true;
 }
 
 void MetaclassesGenerator::WriteHeaderContent(codegen::CppSourceStream& hdrOs)

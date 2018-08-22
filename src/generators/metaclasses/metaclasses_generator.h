@@ -18,9 +18,18 @@ public:
     bool Validate() override;
 
 protected:
+    struct MetaclassInfo
+    {
+        reflection::ClassInfoPtr metaclass;
+        reflection::MethodInfoPtr declGenMethod;
+        reflection::MethodInfoPtr defGenMethod;
+    };
+
     struct MetaclassImplInfo
     {
         reflection::ClassInfoPtr metaclass;
+        reflection::MethodInfoPtr declGenMethod;
+        reflection::MethodInfoPtr defGenMethod;
         reflection::ClassInfoPtr implDecl;
         reflection::ClassInfoPtr impl;
     };
@@ -29,11 +38,12 @@ protected:
     void WriteHeaderContent(CppSourceStream& hdrOs) override;
 
     void ProcessMetaclassDecl(reflection::ClassInfoPtr classInfo, const clang::ASTContext* astContext);
-    void ProcessMetaclassImplDecl(reflection::ClassInfoPtr classInfo, const clang::ASTContext* astContext);    
+    void ProcessMetaclassImplDecl(reflection::ClassInfoPtr classInfo, const clang::ASTContext* astContext);
 
 private:
-
+    const clang::ASTContext* m_astContext = nullptr;
     std::vector<MetaclassImplInfo> m_implsInfo;
+    std::unordered_map<std::string, MetaclassInfo> m_metaclasses;
     reflection::NamespacesTree m_namespaces;
     reflection::NamespacesTree m_implNamespaces;
 

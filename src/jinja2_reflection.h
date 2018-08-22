@@ -760,7 +760,10 @@ struct TypeReflection<reflection::MethodInfo>
                  return Reflect(obj.isVirtual);
              }},
             {"name",
-             [](const reflection::MethodInfo &obj) { return Reflect(obj.name); }},
+             [](const reflection::MethodInfo &obj)
+             {
+                 return Reflect(obj.name);
+             }},
             {"namespaceQualifier",
              [](const reflection::MethodInfo &obj) {
                  return Reflect(obj.namespaceQualifier);
