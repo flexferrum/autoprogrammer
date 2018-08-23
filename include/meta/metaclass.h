@@ -27,11 +27,19 @@ public:
     void make_pure_virtual();
 };
 
+template<typename T>
+struct Range
+{
+    bool empty() const;
+    T* begin();
+    T* end();
+};
+
 class ClassInfo
 {
 public:
-    std::vector<VariableInfo>& variables() const;
-    std::vector<MethodInfo>& functions() const;
+    Range<VariableInfo>& variables() const;
+    Range<MethodInfo>& functions() const;
 };
 
 namespace detail
