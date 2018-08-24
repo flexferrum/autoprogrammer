@@ -6,6 +6,8 @@
 #include <clang/AST/Expr.h>
 #include <clang/AST/StmtVisitor.h>
 
+#include <iostream>
+
 namespace codegen
 {
 namespace interpreter
@@ -17,12 +19,44 @@ public:
     ExpressionEvaluator(InterpreterImpl* interpreter, Value& result, bool& isOk);
 
     void VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr* expr);
+    void VisitDeclRefExpr(const clang::DeclRefExpr* expr);
+    void VisitImplicitCastExpr(const clang::ImplicitCastExpr* expr);
+    void VisitStringLiteral(const clang::StringLiteral* expr);
 
 private:
-    bool EnterVisitor(Value& val);
-    void ExitVisitor(bool isFirst, Value& val);
+    struct VisitorScope
+    {
+        ExpressionEvaluator* evaluator;
+        bool isFirst = false;
+        const char* scopeName;
+        bool isSubmitted = false;
 
+        VisitorScope(ExpressionEvaluator* eval, const char* name)
+            : evaluator(eval)
+            , scopeName(name)
+        {
+            std::cout << "[ExpressionEvaluator] Enter " << name << std::endl;
+            isFirst = eval->m_isFirst;
+            eval->m_isFirst = false;
+
+            if (isFirst)
+                eval->m_currentValue = &eval->m_resultValue;
+        }
+        ~VisitorScope()
+        {
+            std::cout << "[ExpressionEvaluator] Exit " << scopeName << ". IsSucceeded: " << evaluator->m_evalResult << std::endl;
+        }
+        void Submit(Value& val)
+        {
+            if (evaluator->m_currentValue && evaluator->m_evalResult)
+                *evaluator->m_currentValue = std::move(val);
+        }
+
+    };
+
+    bool EvalSubexpr(const clang::Expr* expr, Value& val);
     bool CalculateCallArgs(const clang::CallExpr* expr, std::vector<Value>& args);
+    void ReportError(const clang::SourceLocation& loc, const std::string& errMsg);
 
 private:
     bool m_isFirst = true;

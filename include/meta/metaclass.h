@@ -11,7 +11,7 @@ public:
     void require(bool, const char* message);
     void message(const char* msg);
     void error(const char* msg);
-    void warning(const char* msg);    
+    void warning(const char* msg);
     template<typename T>
     void dump(const T& obj);
 };
@@ -20,9 +20,19 @@ public:
 template<typename T>
 struct Range
 {
+    struct iterator
+    {
+        T& operator*();
+        T* operator->();
+        bool operator == (const iterator&) const;
+        bool operator != (const iterator&) const;
+        iterator& operator++();
+        iterator operator++(int);
+    };
+
     bool empty() const;
-    T* begin();
-    T* end();
+    iterator begin();
+    iterator end();
     T* find(const char* name);
     const T* find(const char* name) const;
 };
@@ -46,15 +56,15 @@ public:
     const std::string& name() const;
     bool has_access() const;
     AccessType get_access() const;
-    
+
     bool is_public() const;
     bool is_protected() const;
     bool is_private() const;
-    
+
     void make_public();
     void make_protected();
     void make_private();
-    
+
     void rename(const char* name);
     void remove();
 };
@@ -100,7 +110,7 @@ public:
     bool is_rv_ref() const;
     bool is_template() const;
     bool is_pure_virtual() const;
-    
+
     void make_defaulted();
     void make_deleted();
     void make_implicit();
@@ -112,7 +122,7 @@ public:
     void make_noexcept();
     void make_const();
     void make_rv_ref();
-    void make_pure_virtual();    
+    void make_pure_virtual();
 };
 
 class ClassInfo

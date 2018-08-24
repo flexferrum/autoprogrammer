@@ -4,3 +4,6 @@
 [submodule "thirdparty/Jinja2Cpp"]
 	path = thirdparty/Jinja2Cpp
 	url = https://github.com/flexferrum/Jinja2Cpp.git
+[submodule "thirdparty/expected-lite"]
+	path = thirdparty/expected-lite
+	url = https://github.com/martinmoene/expected-lite.git

@@ -10,6 +10,7 @@ METACLASS_DECL(Interface)
 {
     static void GenerateDecl()
     {
+        compiler.message("Hello world from metaprogrammer!");
         compiler.require($Interface.variables().empty(), "Interface may not contain data members");
 
         for (auto& f : $Interface.functions())

@@ -3,6 +3,7 @@
 
 #include "decls_reflection.h"
 #include "diagnostic_reporter.h"
+#include "value.h"
 
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
@@ -12,7 +13,10 @@
 #include <clang/AST/ExprCXX.h>
 #include <clang/AST/APValue.h>
 
+#include <nonstd/expected.hpp>
+
 #include <stack>
+#include <unordered_map>
 
 namespace codegen
 {
@@ -45,11 +49,6 @@ private:
     }
 private:
     ScopeStack& m_stack;
-};
-
-struct Value
-{
-    clang::APValue val;
 };
 
 class InterpreterImpl
@@ -86,7 +85,11 @@ private:
     ExecStatementResult ExecuteStatement(const clang::Stmt* stmt, const clang::SwitchCase* curSwithCase);
     bool ExecuteExpression(const clang::Expr* expr, Value& result);
 
+    nonstd::expected<Value, std::string> GetDeclReference(const clang::NamedDecl* decl);
+    bool DetectSpecialDecl(const clang::NamedDecl* decl, Value& val);
+
     bool Report(Diag type, const clang::SourceLocation& loc, std::string message);
+
 
 private:
     using BlockScopeRAII = RAIIScope<false>;
@@ -97,6 +100,8 @@ private:
     reflection::ClassInfoPtr m_instance;
     std::stack<ScopeInfo> m_scopes;
     IDiagnosticReporter* m_diagReporter;
+    std::unordered_map<const clang::NamedDecl*, Value::InternalRef> m_visibleDecls;
+    std::unordered_map<std::string, Value> m_globalVars;
 
     friend class ExpressionEvaluator;
 };

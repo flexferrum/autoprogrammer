@@ -4,6 +4,12 @@
 #include "cpp_interpreter_impl.h"
 #include "expresssion_evaluator.h"
 
+#include "type_info.h"
+#include "value.h"
+#include "reflected_object.h"
+
+#include <clang/AST/Decl.h>
+
 using namespace clang;
 using namespace reflection;
 
@@ -327,6 +333,60 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
         return false;
     }
 #endif
+}
+
+nonstd::expected<Value, std::string> InterpreterImpl::GetDeclReference(const clang::NamedDecl* decl)
+{
+    auto p = m_visibleDecls.find(decl);
+    if (p != m_visibleDecls.end())
+        return Value(p->second);
+
+    Value val;
+    if (DetectSpecialDecl(decl, val))
+        return val;
+
+    return nonstd::make_unexpected("Can't resolve variable '" + decl->getNameAsString() + "'");
+}
+
+bool InterpreterImpl::DetectSpecialDecl(const clang::NamedDecl* decl, Value& val)
+{
+    const clang::VarDecl* varDecl = llvm::dyn_cast_or_null<const clang::VarDecl>(decl);
+
+    if (!varDecl)
+        return false;
+
+    reflection::TypeInfoPtr ti = reflection::TypeInfo::Create(varDecl->getType(), m_astContext);
+    std::string varName = varDecl->getNameAsString();
+    std::string valueKey = varName + ":>" + ti->getFullQualifiedName();
+    Value* actual = &m_globalVars[valueKey];
+    if (valueKey == "compiler:>meta::CompilerImpl" && ti->getIsReference())
+    {
+        *actual = ReflectedObject(Compiler());
+    }
+    else if(varName.length() >= 1 && varName[0] == '$')
+    {
+        std::string tmpName = "MetaClass_" + varName.substr(1);
+        std::cout << "Possible reference to metaclass found: " << tmpName << std::endl;
+        const DeclContext* ctx = decl->getDeclContext();
+        if (ctx->isRecord())
+        {
+            auto rec = llvm::dyn_cast_or_null<const clang::RecordDecl>(ctx);
+            // assert(rec);
+            std::string name = rec->getNameAsString();
+            if (name == tmpName)
+                *actual = ReflectedObject(m_instance);
+        }
+    }
+
+    if (!actual->IsEmpty())
+    {
+        m_visibleDecls[decl] = Value::InternalRef(actual);
+    }
+    else
+        return false;
+
+    std::cout << "Found reference to variable declaration. Variable name: " << varDecl->getNameAsString() << "', variable type: '" << ti->getFullQualifiedName() << "'" << std::endl;
+    return true;
 }
 
 bool InterpreterImpl::Report(Diag type, const clang::SourceLocation& loc, std::string message)

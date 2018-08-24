@@ -64,6 +64,7 @@ include_directories(
     SYSTEM
     ${CLANG_INCLUDE_DIRS}
     ${LLVM_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/expected-lite/include
     )
 
 include_directories(

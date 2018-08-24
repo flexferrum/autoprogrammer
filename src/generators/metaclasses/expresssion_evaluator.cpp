@@ -1,4 +1,5 @@
 #include "expresssion_evaluator.h"
+#include "value_ops.h"
 
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
@@ -21,44 +22,69 @@ ExpressionEvaluator::ExpressionEvaluator(InterpreterImpl* interpreter, Value& re
 {
 }
 
-bool ExpressionEvaluator::EnterVisitor(Value& val)
+void ExpressionEvaluator::VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr* expr)
 {
-    bool result = m_isFirst;
-    if (m_isFirst)
-        m_isFirst = false;
-
-    m_currentValue = &val;
-
-    return result;
-}
-
-void ExpressionEvaluator::ExitVisitor(bool isFirst, Value& val)
-{
-    if (isFirst)
-    {
-        m_resultValue = std::move(val);
-    }
-}
-
-void ExpressionEvaluator::VisitCXXMemberCallExpr(const CXXMemberCallExpr* expr)
-{
-    std::cout << "[ExpressionEvaluator] Enter VisitCXXMemberCallExpr" << std::endl;
-    Value result;
-    bool isFirst = EnterVisitor(result);
+    VisitorScope vScope(this, "VisitCXXMemberCallExpr");
     const clang::CXXRecordDecl* rec = expr->getRecordDecl();
     const clang::CXXMethodDecl* method = expr->getMethodDecl();
 
     std::string recName = rec->getQualifiedNameAsString();
     std::cout << "[ExpressionEvaluator] Call method '" << method->getNameAsString() << "' from '" << recName << "'" << std::endl;
 
+    Value object;
     std::vector<Value> args;
-    if (CalculateCallArgs(expr, args))
+    Value result;
+    if (EvalSubexpr(expr->getImplicitObjectArgument(), object) && CalculateCallArgs(expr, args))
     {
-        ;
+        m_evalResult = value_ops::CallMember(m_interpreter, object, method, args, result);
     }
 
-    ExitVisitor(isFirst, result);
-    std::cout << "[ExpressionEvaluator] Exit VisitCXXMemberCallExpr" << std::endl;
+    vScope.Submit(result);
+}
+
+void ExpressionEvaluator::VisitDeclRefExpr(const clang::DeclRefExpr* expr)
+{
+    VisitorScope vScope(this, "VisitDeclRefExpr");
+    std::cout << "[ExpressionEvaluator] Declaration reference found: '" << expr->getNameInfo().getAsString() << "'" << std::endl;
+
+    auto res = m_interpreter->GetDeclReference(expr->getFoundDecl());
+    if (!res)
+    {
+        ReportError(expr->getLocation(), res.error());
+        return;
+    }
+
+    vScope.Submit(std::move(res.value()));
+}
+
+void ExpressionEvaluator::VisitImplicitCastExpr(const clang::ImplicitCastExpr* expr)
+{
+    VisitorScope vScope(this, "VisitDeclRefExpr");
+    Value srcVal;
+    if (!EvalSubexpr(expr->getSubExpr(), srcVal))
+        return;
+
+    vScope.Submit(srcVal);
+
+}
+
+void ExpressionEvaluator::VisitStringLiteral(const clang::StringLiteral* expr)
+{
+    VisitorScope vScope(this, "VisitDeclRefExpr");
+    Value val(expr->getString().str());
+
+    std::cout << "String literal found: '" << expr->getString().str() << "'" << std::endl;
+
+    vScope.Submit(val);
+}
+
+bool ExpressionEvaluator::EvalSubexpr(const Expr* expr, Value& val)
+{
+    auto prevVal = m_currentValue;
+    m_currentValue = &val;
+    Visit(expr);
+    m_currentValue = prevVal;
+    return m_evalResult;
 }
 
 bool ExpressionEvaluator::CalculateCallArgs(const clang::CallExpr* expr, std::vector<Value>& args)
@@ -68,15 +94,20 @@ bool ExpressionEvaluator::CalculateCallArgs(const clang::CallExpr* expr, std::ve
     {
         std::cout << "[ExpressionEvaluator] Enter evaluation of arg #" << argNum << "'" << std::endl;
         Value val;
-        bool isFirst = EnterVisitor(val);
-        Visit(arg);
-        if (!m_evalResult)
+        if (!EvalSubexpr(arg, val))
             return false;
-        ExitVisitor(isFirst, val);
         args.push_back(std::move(val));
         std::cout << "[ExpressionEvaluator] Exit evaluation of arg #" << argNum << "'" << std::endl;
         argNum ++;
     }
+
+    return true;
+}
+
+void ExpressionEvaluator::ReportError(const SourceLocation& loc, const std::string& errMsg)
+{
+    m_interpreter->Report(Diag::Error, loc, errMsg);
+    m_evalResult = false;
 }
 
 
