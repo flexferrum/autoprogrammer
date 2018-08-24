@@ -14,7 +14,7 @@ METACLASS_DECL(Interface)
 
         for (auto& f : $Interface.functions())
         {
-            compiler.require(!f.is_copy() && !f.is_move(), "Interface can't contain copy or move constructor");
+            compiler.require(f.is_implicit() || (!f.is_copy_ctor() && !f.is_move_ctor()), "Interface can't contain copy or move constructor");
             if (!f.has_access())
                 f.make_public();
 
@@ -22,6 +22,7 @@ METACLASS_DECL(Interface)
             f.make_pure_virtual();
         }
     }
+
 
     static int GenerateImpl()
     {
