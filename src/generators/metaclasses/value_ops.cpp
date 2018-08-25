@@ -1,7 +1,12 @@
 #include "value_ops.h"
 #include "cpp_interpreter_impl.h"
+#include "reflected_object.h"
 
+#include <functional>
+#include <utility>
 #include <iostream>
+
+using namespace std::string_literals;
 
 namespace codegen
 {
@@ -24,13 +29,26 @@ Value* GetActualValue(Value& val)
     return ptr == nullptr ? &val : ptr->pointee;
 }
 
+const Value* GetActualValue(const Value& val)
+{
+    const Value::Ptr* ptr;
+    if (!(ptr = boost::get<Value::InternalRef>(&val.GetValue())))
+    {
+        if ((ptr = boost::get<Value::Reference>(&val.GetValue())))
+        {
+            ptr = boost::get<Value::Pointer>(&val.GetValue());
+        }
+    }
+
+    return ptr == nullptr ? &val : ptr->pointee;
+}
 
 template<typename Fn, typename Value>
 auto ApplyUnwrapped(Value&& val, Fn&& fn)
 {
     auto actualVal = GetActualValue(val);
 
-    ReflectedObject* reflObj = boost::get<ReflectedObject>(&actualVal->GetValue());
+    auto reflObj = boost::get<ReflectedObject>(&actualVal->GetValue());
 
     if (reflObj != nullptr)
         return fn(reflObj->GetValue());
@@ -51,7 +69,7 @@ auto Apply(Value&& val, Args&& ... args)
 }
 
 template<typename V, typename Value, typename ... Args>
-auto Apply2(const Value&& val1, const Value&& val2, Args&& ... args)
+auto Apply2(Value&& val1, Value&& val2, Args&& ... args)
 {
     return ApplyUnwrapped(std::forward<Value>(val1), [&val2, &args...](auto& uwVal1) {
         return ApplyUnwrapped(std::forward<Value>(val2), [&uwVal1, &args...](auto& uwVal2) {
@@ -60,31 +78,103 @@ auto Apply2(const Value&& val1, const Value&& val2, Args&& ... args)
     });
 }
 
+template<typename R>
+struct ValueConverter : boost::static_visitor<R>
+{
+    template<typename U>
+    R operator()(U&& val, std::enable_if_t<std::is_convertible<U, R>::value>* = nullptr) const
+    {
+        return std::forward<U>(val);
+    }
+
+    template<typename U>
+    R operator()(U&& val, std::enable_if_t<!std::is_convertible<U, R>::value>* = nullptr) const
+    {
+        return R();
+    }
+};
+
+template<typename R, typename V>
+R ConvertValue(V&& value)
+{
+    return Apply<ValueConverter<R>>(std::forward<V>(value));
+}
+
+template<typename Fn>
 struct CallMemberVisitor : boost::static_visitor<bool>
 {
+    Fn fn;
     InterpreterImpl* interpreter;
-    const clang::CXXMethodDecl* method;
     const std::vector<Value>& args;
     Value& result;
-    CallMemberVisitor(InterpreterImpl* i, const clang::CXXMethodDecl* m, const std::vector<Value>& a, Value& r)
-        : interpreter(i)
-        , method(m)
+
+    CallMemberVisitor(Fn f, InterpreterImpl* i, const std::vector<Value>& a, Value& r)
+        : fn(f)
+        , interpreter(i)
         , args(a)
         , result(r)
     {
     }
 
     template<typename U>
-    bool operator()(U&& val) const
+    auto operator()(U&& val) const -> decltype(Call(fn, std::forward<U>(val)))
     {
-        std::cout << "Call method '" << method->getQualifiedNameAsString() << "' for some object." << std::endl;
+        return Call(fn, std::forward<U>(val));
+    }
+
+    auto operator()(...) const
+    {
+        std::cout << "Call method for some object of wrong type." << std::endl;
         return true;
+    }
+
+    template<typename U, typename T, typename ... Args>
+    auto Call(bool (*fn)(InterpreterImpl*, T, Args...), U&& val) const -> decltype(fn(interpreter, std::forward<U>(val), std::declval<Args>()...))
+    {
+        return Invoke(fn, std::forward<U>(val), std::make_index_sequence<sizeof ... (Args)>());
+    }
+
+    template<typename U, typename T, typename ... Args, size_t ... Idxs>
+    bool Invoke(bool (*fn)(InterpreterImpl*, T, Args...), U&& val, const std::index_sequence<Idxs...>&) const
+    {
+        return fn(interpreter, std::forward<U>(val), ConvertValue<std::decay_t<Args>>(args[Idxs])...);
     }
 };
 
+template<typename Fn>
+auto ApplyCallMemberVisitor(Fn&& fnPtr, Value& obj, InterpreterImpl* interpreter, const std::vector<Value>& args, Value& result)
+{
+    return Apply<CallMemberVisitor<Fn>>(obj, fnPtr, interpreter, args, result);
+}
+
 bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethodDecl* method, const std::vector<Value>& args, Value& result)
 {
-    return Apply<CallMemberVisitor>(obj, interpreter, method, args, result);
+    static auto thunk = [](auto fnPtr, InterpreterImpl* interpreter, Value& obj, const std::vector<Value>& args, Value& result) {
+        return ApplyCallMemberVisitor(fnPtr, obj, interpreter, args, result);
+    };
+    using ThunkType = decltype(thunk);
+    using ThunkInvoker = std::function<bool (const ThunkType&, InterpreterImpl*, Value&, const std::vector<Value>&, Value&)>;
+
+    static auto thunkMaker = [](auto fnPtr) -> ThunkInvoker {
+        return [fnPtr](const ThunkType& thunk, InterpreterImpl* interpreter, Value& obj, const std::vector<Value>& args, Value& result) -> bool {
+            return thunk(fnPtr, interpreter, obj, args, result);
+        };
+    };
+
+    static std::unordered_map<std::string, ThunkInvoker> fns = {
+        {"meta::CompilerImpl::message"s, thunkMaker(&ReflectedMethods::Compiler_message)}
+    };
+
+    auto methodName = method->getQualifiedNameAsString();
+    auto p = fns.find(methodName);
+    if (p == fns.end())
+    {
+        std::cout << "### Can't find implementation for method '" << methodName << "'" << std::endl;
+        return false;
+    }
+
+    std::cout << "### Trying to call '" << methodName << "'" << std::endl;
+    return p->second(thunk, interpreter, obj, args, result);
 }
 } // namespace value_ops
 } // interpreter

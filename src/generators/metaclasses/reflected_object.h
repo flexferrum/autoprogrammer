@@ -10,6 +10,8 @@ namespace codegen
 namespace interpreter
 {
 
+class InterpreterImpl;
+
 struct Compiler
 {
 };
@@ -25,6 +27,12 @@ public:
 
 private:
     DataType m_value;
+};
+
+class ReflectedMethods
+{
+public:
+    static bool Compiler_message(InterpreterImpl* interpreter, const Compiler& obj, const std::string& msg);
 };
 
 } // interpreter

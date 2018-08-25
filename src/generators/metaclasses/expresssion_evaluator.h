@@ -49,7 +49,10 @@ private:
         void Submit(Value& val)
         {
             if (evaluator->m_currentValue && evaluator->m_evalResult)
+            {
+                std::cout << "[ExpressionEvaluator] Value successfully submitted. ValType: " << val.GetValue().which() << std::endl;
                 *evaluator->m_currentValue = std::move(val);
+            }
         }
 
     };

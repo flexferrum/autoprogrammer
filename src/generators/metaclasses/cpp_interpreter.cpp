@@ -380,6 +380,7 @@ bool InterpreterImpl::DetectSpecialDecl(const clang::NamedDecl* decl, Value& val
 
     if (!actual->IsEmpty())
     {
+        val = Value::InternalRef(actual);
         m_visibleDecls[decl] = Value::InternalRef(actual);
     }
     else
