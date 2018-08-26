@@ -129,15 +129,15 @@ struct CallMemberVisitor : boost::static_visitor<bool>
     }
 
     template<typename U, typename T, typename ... Args>
-    auto Call(bool (*fn)(InterpreterImpl*, T, Args...), U&& val) const -> decltype(fn(interpreter, std::forward<U>(val), std::declval<Args>()...))
+    auto Call(bool (*fn)(InterpreterImpl*, T, Value&, Args...), U&& val) const -> decltype(fn(interpreter, std::forward<U>(val), result, std::declval<Args>()...))
     {
         return Invoke(fn, std::forward<U>(val), std::make_index_sequence<sizeof ... (Args)>());
     }
 
     template<typename U, typename T, typename ... Args, size_t ... Idxs>
-    bool Invoke(bool (*fn)(InterpreterImpl*, T, Args...), U&& val, const std::index_sequence<Idxs...>&) const
+    bool Invoke(bool (*fn)(InterpreterImpl*, T, Value&, Args...), U&& val, const std::index_sequence<Idxs...>&) const
     {
-        return fn(interpreter, std::forward<U>(val), ConvertValue<std::decay_t<Args>>(args[Idxs])...);
+        return fn(interpreter, std::forward<U>(val), result, ConvertValue<std::decay_t<Args>>(args[Idxs])...);
     }
 };
 
@@ -162,16 +162,29 @@ bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethod
     };
 
     static std::unordered_map<std::string, ThunkInvoker> fns = {
-        {"meta::CompilerImpl::message"s, thunkMaker(&ReflectedMethods::Compiler_message)}
+        {"meta::CompilerImpl::message/void message(const char *msg)"s, thunkMaker(&ReflectedMethods::Compiler_message)},
+        {"meta::CompilerImpl::require/void require(bool, const char *message)"s, thunkMaker(&ReflectedMethods::Compiler_require)},
+        {"meta::ClassInfo::variables/Range<meta::MemberInfo> &variables() const"s, thunkMaker(&ReflectedMethods::ClassInfo_variables)},
+        {"meta::Range<meta::MemberInfo>::empty/bool empty() const"s, thunkMaker(&ReflectedMethods::RangeT_empty)},
     };
 
-    auto methodName = method->getQualifiedNameAsString();
+    std::string methodName;
+    {
+        llvm::raw_string_ostream methodNameOs(methodName);
+        clang::PrintingPolicy pp = interpreter->GetDefaultPrintingPolicy();
+        pp.SuppressScope = false;
+        methodNameOs << method->getQualifiedNameAsString() << "/";
+        method->print(methodNameOs, pp);
+    }
+
+    // auto methodName = method->getQualifiedNameAsString();
     auto p = fns.find(methodName);
     if (p == fns.end())
     {
         std::cout << "### Can't find implementation for method '" << methodName << "'" << std::endl;
         return false;
     }
+
 
     std::cout << "### Trying to call '" << methodName << "'" << std::endl;
     return p->second(thunk, interpreter, obj, args, result);

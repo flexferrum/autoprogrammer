@@ -80,6 +80,21 @@ public:
         return m_value.which() == 0;
     }
 
+    bool IsVoid() const
+    {
+        return m_value.which() == 1;
+    }
+
+    bool IsNoValue() const
+    {
+        return IsEmpty() || IsVoid();
+    }
+
+    void Clear()
+    {
+        m_value = EmptyValue();
+    }
+
 private:
     DataType m_value;
 };

@@ -394,6 +394,13 @@ bool InterpreterImpl::Report(Diag type, const clang::SourceLocation& loc, std::s
 {
     return !(type == Diag::Error);
 }
+
+PrintingPolicy InterpreterImpl::GetDefaultPrintingPolicy()
+{
+    PrintingPolicy pp(m_astContext->getLangOpts());
+    pp.Bool = true;
+    return pp;
+}
 } // interpreter
 
 CppInterpreter::CppInterpreter(const clang::ASTContext* astContext)

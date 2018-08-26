@@ -62,6 +62,9 @@ public:
     }
 
     void ExecuteMethod(const clang::CXXMethodDecl* method);
+    bool Report(Diag type, const clang::SourceLocation& loc, std::string message);
+    clang::PrintingPolicy GetDefaultPrintingPolicy();
+
 
 private:
     enum ExecStatementResult
@@ -87,8 +90,6 @@ private:
 
     nonstd::expected<Value, std::string> GetDeclReference(const clang::NamedDecl* decl);
     bool DetectSpecialDecl(const clang::NamedDecl* decl, Value& val);
-
-    bool Report(Diag type, const clang::SourceLocation& loc, std::string message);
 
 
 private:

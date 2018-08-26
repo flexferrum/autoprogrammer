@@ -39,4 +39,14 @@ public:
     std::string TestMethod2(int param) const;
 };
 
+METACLASS_INST(Interface, BadTestIface)
+{
+public:
+    void TestMethod1();
+    std::string TestMethod2(int param) const;
+
+private:
+    int m_val;
+};
+
 #endif // TEST_ENUMS_H
