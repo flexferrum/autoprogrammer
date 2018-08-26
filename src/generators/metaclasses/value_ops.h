@@ -17,6 +17,7 @@ class InterpreterImpl;
 
 namespace value_ops
 {
+bool ConvertToBool(InterpreterImpl* interpreter, const Value& obj);
 bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethodDecl* method, const std::vector<Value>& args, Value& result);
 } // namespace value_ops
 

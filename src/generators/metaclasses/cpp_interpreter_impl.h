@@ -22,11 +22,18 @@ namespace codegen
 {
 namespace interpreter
 {
-struct ScopeInfo
+struct ScopeStack
 {
-};
+    struct DeclInfo
+    {
+        const clang::NamedDecl* decl;
+        Value val;
+        bool isLifetimeExtended = false;
+    };
 
-using ScopeStack = std::stack<ScopeInfo>;
+    std::vector<DeclInfo> stack;
+    std::unordered_map<const clang::NamedDecl*, Value::InternalRef>* m_visibleDecls;
+};
 
 template<bool IsFullExpr>
 class RAIIScope
@@ -34,21 +41,38 @@ class RAIIScope
 public:
     explicit RAIIScope(ScopeStack& stack)
         : m_stack(stack)
+        , m_savedEnd(stack.stack.size())
     {
-        m_stack.push(ScopeInfo());
     }
     ~RAIIScope()
     {
-        auto& scope = m_stack.top();
-        Cleanup(scope);
-        m_stack.pop();
+        Cleanup();
     }
 private:
-    void Cleanup(ScopeInfo& scope)
+    void Cleanup()
     {
+        auto newEnd = m_savedEnd;
+        auto& stack = m_stack.stack;
+        for (size_t i = m_savedEnd, n = stack.size(); i != n; ++ i)
+        {
+            if (IsFullExpr && stack[i].isLifetimeExtended)
+            {
+                // Full-expression cleanup of a lifetime-extended temporary: nothing
+                // to do, just move this cleanup to the right place in the stack.
+                std::swap(stack[i], stack[newEnd ++]);
+                ++newEnd;
+            }
+            else
+            {
+                // End the lifetime of the object.
+                m_stack.m_visibleDecls->erase(stack[i].decl);
+            }
+        }
+        stack.erase(stack.begin() + newEnd, stack.end());
     }
 private:
     ScopeStack& m_stack;
+    size_t m_savedEnd;
 };
 
 class InterpreterImpl
@@ -59,6 +83,7 @@ public:
         , m_metaclass(metaclass)
         , m_instance(inst)
     {
+        m_scopes.m_visibleDecls = &m_visibleDecls;
     }
 
     void ExecuteMethod(const clang::CXXMethodDecl* method);
@@ -86,7 +111,12 @@ private:
 
     // Executors
     ExecStatementResult ExecuteStatement(const clang::Stmt* stmt, const clang::SwitchCase* curSwithCase);
+    ExecStatementResult EvaluateLoopBody(const clang::Stmt* body, const clang::SwitchCase *curSwitchCase = nullptr);
+
     bool ExecuteExpression(const clang::Expr* expr, Value& result);
+    bool ExecuteAsBooleanCondition(const clang::Expr* expr, bool& result);
+    bool ExecuteVarDecl(const clang::VarDecl *decl);
+    bool ExecuteDecl(const clang::Decl *D);
 
     nonstd::expected<Value, std::string> GetDeclReference(const clang::NamedDecl* decl);
     bool DetectSpecialDecl(const clang::NamedDecl* decl, Value& val);
@@ -99,14 +129,13 @@ private:
     const clang::ASTContext* m_astContext;
     reflection::ClassInfoPtr m_metaclass;
     reflection::ClassInfoPtr m_instance;
-    std::stack<ScopeInfo> m_scopes;
+    ScopeStack m_scopes;
     IDiagnosticReporter* m_diagReporter;
     std::unordered_map<const clang::NamedDecl*, Value::InternalRef> m_visibleDecls;
     std::unordered_map<std::string, Value> m_globalVars;
 
     friend class ExpressionEvaluator;
 };
-
 
 } // interpreter
 } // codegen4

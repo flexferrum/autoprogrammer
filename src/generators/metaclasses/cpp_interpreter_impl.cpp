@@ -6,6 +6,7 @@
 
 #include "type_info.h"
 #include "value.h"
+#include "value_ops.h"
 #include "reflected_object.h"
 
 #include <clang/AST/Decl.h>
@@ -30,6 +31,8 @@ void InterpreterImpl::ExecuteMethod(const CXXMethodDecl* method)
 
 InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stmt* stmt, const SwitchCase* curSwithCase)
 {
+    std::cout << "<><><><><><><><><> Executing statement: " << stmt->getStmtClassName() << std::endl;
+
     switch (stmt->getStmtClass())
     {
     case Stmt::NullStmtClass:
@@ -51,6 +54,72 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
         return curSwithCase ? ESR_CaseNotFound : ESR_Succeeded;
     }
 
+    case Stmt::CXXForRangeStmtClass:
+    {
+        const CXXForRangeStmt *forStmt = cast<CXXForRangeStmt>(stmt);
+
+        BlockScopeRAII scope(m_scopes);
+
+        // Initialize the __range variable.
+        ExecStatementResult result = ExecuteStatement(forStmt->getRangeStmt(), nullptr);
+        if (result != ESR_Succeeded)
+            return result;
+
+        // Create the __begin and __end iterators.
+        result = ExecuteStatement(forStmt->getBeginStmt(), nullptr);
+        if (result != ESR_Succeeded)
+            return result;
+        result = ExecuteStatement(forStmt->getEndStmt(), nullptr);
+        if (result != ESR_Succeeded)
+            return result;
+
+        while (true)
+        {
+            // Condition: __begin != __end.
+            {
+                bool doContinue = true;
+                ExprScopeRAII сondExpr(m_scopes);
+                if (!ExecuteAsBooleanCondition(forStmt->getCond(), doContinue))
+                    return ESR_Failed;
+                if (!doContinue)
+                    break;
+            }
+
+            // User's variable declaration, initialized by *__begin.
+            BlockScopeRAII innerScope(m_scopes);
+            result = ExecuteStatement(forStmt->getLoopVarStmt(), nullptr);
+            if (result != ESR_Succeeded)
+                return result;
+
+            // Loop body.
+            result = EvaluateLoopBody(forStmt->getBody(), nullptr);
+            if (result != ESR_Continue)
+                return result;
+
+            // Increment: ++__begin
+            Value ignoredResult;
+            if (!ExecuteExpression(forStmt->getInc(), ignoredResult))
+                return ESR_Failed;
+        }
+
+        return ESR_Succeeded;
+    }
+
+    case Stmt::DeclStmtClass:
+    {
+        const clang::DeclStmt *declStmt = cast<DeclStmt>(stmt);
+        for (const auto *decl : declStmt->decls())
+        {
+            // Each declaration initialization is its own full-expression.
+            // FIXME: This isn't quite right; if we're performing aggregate
+            // initialization, each braced subexpression is its own full-expression.
+            ExprScopeRAII scope(m_scopes);
+            if (!ExecuteDecl(decl))
+                return ESR_Failed;
+        }
+        return ESR_Succeeded;
+    }
+
     default:
         if (const Expr *expr = dyn_cast<Expr>(stmt))
         {
@@ -61,7 +130,7 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
             return ESR_Succeeded;
         }
 
-        std::cout << "<><><><><><><><><> Executing statement: " << stmt->getStmtClassName() << std::endl;
+        std::cout << "<><><><><><><><><> Unknown statement: " << stmt->getStmtClassName() << std::endl;
         return ESR_Failed;
 #if 0
     case Stmt::DeclStmtClass: {
@@ -174,53 +243,6 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
       return ESR_Succeeded;
     }
 
-    case Stmt::CXXForRangeStmtClass: {
-      const CXXForRangeStmt *FS = cast<CXXForRangeStmt>(S);
-      BlockScopeRAII Scope(Info);
-
-      // Initialize the __range variable.
-      EvalStmtResult ESR = EvaluateStmt(Result, Info, FS->getRangeStmt());
-      if (ESR != ESR_Succeeded)
-        return ESR;
-
-      // Create the __begin and __end iterators.
-      ESR = EvaluateStmt(Result, Info, FS->getBeginStmt());
-      if (ESR != ESR_Succeeded)
-        return ESR;
-      ESR = EvaluateStmt(Result, Info, FS->getEndStmt());
-      if (ESR != ESR_Succeeded)
-        return ESR;
-
-      while (true) {
-        // Condition: __begin != __end.
-        {
-          bool Continue = true;
-          FullExpressionRAII CondExpr(Info);
-          if (!EvaluateAsBooleanCondition(FS->getCond(), Continue, Info))
-            return ESR_Failed;
-          if (!Continue)
-            break;
-        }
-
-        // User's variable declaration, initialized by *__begin.
-        BlockScopeRAII InnerScope(Info);
-        ESR = EvaluateStmt(Result, Info, FS->getLoopVarStmt());
-        if (ESR != ESR_Succeeded)
-          return ESR;
-
-        // Loop body.
-        ESR = EvaluateLoopBody(Result, Info, FS->getBody());
-        if (ESR != ESR_Continue)
-          return ESR;
-
-        // Increment: ++__begin
-        if (!EvaluateIgnoredValue(Info, FS->getInc()))
-          return ESR_Failed;
-      }
-
-      return ESR_Succeeded;
-    }
-
     case Stmt::SwitchStmtClass:
       return EvaluateSwitch(Result, Info, cast<SwitchStmt>(S));
 
@@ -246,6 +268,24 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
 #endif
 }
 }
+
+InterpreterImpl::ExecStatementResult InterpreterImpl::EvaluateLoopBody(const clang::Stmt* body, const SwitchCase* curSwitchCase) {
+    BlockScopeRAII scope(m_scopes);
+    switch (auto result = ExecuteStatement(body, curSwitchCase))
+    {
+    case ESR_Break:
+        return ESR_Succeeded;
+    case ESR_Succeeded:
+    case ESR_Continue:
+        return ESR_Continue;
+    case ESR_Failed:
+    case ESR_Returned:
+    case ESR_CaseNotFound:
+        return result;
+    }
+    llvm_unreachable("Invalid EvalStmtResult!");
+}
+
 
 bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
 {
@@ -333,6 +373,65 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
         return false;
     }
 #endif
+}
+
+bool InterpreterImpl::ExecuteAsBooleanCondition(const Expr* expr, bool& result)
+{
+    Value val;
+    if (!ExecuteExpression(expr, val))
+        return false;
+
+    result = value_ops::ConvertToBool(this, val);
+    return true;
+}
+
+bool InterpreterImpl::ExecuteVarDecl(const VarDecl* decl)
+{
+    // TODO: Handle static variables (but how???)
+    if (!decl->hasLocalStorage())
+        return true;
+
+    Value evalResult;
+#if 0
+    evalResult.set(decl, Info.CurrentCall->Index);
+    APValue &Val = Info.CurrentCall->createTemporary(decl, true);
+
+    const Expr *InitE = decl->getInit();
+    if (!InitE) {
+        Info.FFDiag(decl->getLocStart(), diag::note_constexpr_uninitialized)
+                << false << decl->getType();
+        Val = APValue();
+        return false;
+    }
+
+    if (InitE->isValueDependent())
+        return false;
+
+    if (!EvaluateInPlace(Val, Info, evalResult, InitE)) {
+        // Wipe out any partially-computed value, to allow tracking that this
+        // evaluation failed.
+        Val = APValue();
+        return false;
+    }
+#endif
+
+    return true;
+}
+
+bool InterpreterImpl::ExecuteDecl(const Decl* D)
+{
+    bool OK = true;
+
+    if (const VarDecl *VD = dyn_cast<VarDecl>(D))
+        OK &= ExecuteVarDecl(VD);
+
+#if 0
+    if (const DecompositionDecl *DD = dyn_cast<DecompositionDecl>(D))
+        for (auto *BD : DD->bindings())
+            if (auto *VD = BD->getHoldingVar())
+                OK &= EvaluateDecl(Info, VD);
+#endif
+    return OK;
 }
 
 nonstd::expected<Value, std::string> InterpreterImpl::GetDeclReference(const clang::NamedDecl* decl)

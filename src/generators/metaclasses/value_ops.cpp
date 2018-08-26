@@ -100,6 +100,12 @@ R ConvertValue(V&& value)
     return Apply<ValueConverter<R>>(std::forward<V>(value));
 }
 
+bool ConvertToBool(InterpreterImpl* interpreter, const Value& obj)
+{
+    return ConvertValue<bool>(obj);
+}
+
+
 template<typename Fn>
 struct CallMemberVisitor : boost::static_visitor<bool>
 {
