@@ -78,7 +78,7 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
             // Condition: __begin != __end.
             {
                 bool doContinue = true;
-                ExprScopeRAII сondExpr(m_scopes);
+                ExprScopeRAII condExpr(m_scopes);
                 if (!ExecuteAsBooleanCondition(forStmt->getCond(), doContinue))
                     return ESR_Failed;
                 if (!doContinue)

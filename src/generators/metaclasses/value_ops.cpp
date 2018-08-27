@@ -63,8 +63,8 @@ auto ApplyUnwrapped(Value&& val, Fn&& fn)
 template<typename V, typename Value, typename ... Args>
 auto Apply(Value&& val, Args&& ... args)
 {
-    return ApplyUnwrapped(val, [&args...](auto& val) {
-        return boost::apply_visitor(V(args...), val);
+    return ApplyUnwrapped(std::forward<Value>(val), [&args...](auto& v) {
+        return boost::apply_visitor(V(std::forward<Args>(args)...), v);
     });
 }
 
@@ -122,6 +122,18 @@ struct CallMemberVisitor : boost::static_visitor<bool>
     {
     }
 
+    template<typename U, typename T, typename ... Args, size_t ... Idxs>
+    bool Invoke(bool (*fn)(InterpreterImpl*, T, Value&, Args...), U&& val, const std::index_sequence<Idxs...>&) const
+    {
+        return fn(interpreter, std::forward<U>(val), result, ConvertValue<std::decay_t<Args>>(args[Idxs])...);
+    }
+
+    template<typename U, typename T, typename ... Args>
+    auto Call(bool (*fn)(InterpreterImpl*, T, Value&, Args...), U&& val) const -> decltype(fn(interpreter, std::forward<U>(val), result, std::declval<Args>()...))
+    {
+        return Invoke(fn, std::forward<U>(val), std::make_index_sequence<sizeof ... (Args)>());
+    }
+    
     template<typename U>
     auto operator()(U&& val) const -> decltype(Call(fn, std::forward<U>(val)))
     {
@@ -134,17 +146,6 @@ struct CallMemberVisitor : boost::static_visitor<bool>
         return true;
     }
 
-    template<typename U, typename T, typename ... Args>
-    auto Call(bool (*fn)(InterpreterImpl*, T, Value&, Args...), U&& val) const -> decltype(fn(interpreter, std::forward<U>(val), result, std::declval<Args>()...))
-    {
-        return Invoke(fn, std::forward<U>(val), std::make_index_sequence<sizeof ... (Args)>());
-    }
-
-    template<typename U, typename T, typename ... Args, size_t ... Idxs>
-    bool Invoke(bool (*fn)(InterpreterImpl*, T, Value&, Args...), U&& val, const std::index_sequence<Idxs...>&) const
-    {
-        return fn(interpreter, std::forward<U>(val), result, ConvertValue<std::decay_t<Args>>(args[Idxs])...);
-    }
 };
 
 template<typename Fn>

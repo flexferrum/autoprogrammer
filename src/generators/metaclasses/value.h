@@ -61,6 +61,12 @@ public:
     Value(DataType val = DataType())
         : m_value(std::move(val))
     {}
+    
+    Value(const Value& val) = default;
+    Value(Value&& val) = default;
+    Value(Value& val)
+        : Value(std::move(val))
+    {}
 
     template<typename U>
     Value(U&& val)
@@ -71,6 +77,9 @@ public:
     Value(const U& val)
         : m_value(std::move(val))
     {}
+    
+    Value& operator = (const Value& val) = default;
+    Value& operator = (Value&&) = default;
 
     auto& GetValue() const {return m_value;}
     auto& GetValue() {return m_value;}

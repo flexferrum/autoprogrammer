@@ -2,6 +2,7 @@
 #define INCLUDE_META_METACLASS_H
 
 #include <vector>
+#include <string>
 
 namespace meta
 {

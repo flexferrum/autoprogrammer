@@ -33,10 +33,20 @@ public:
     using DataType = boost::variant<Compiler, reflection::ClassInfoPtr, reflection::MethodInfoPtr, reflection::MemberInfoPtr, RangeTPtr>;
 
     ReflectedObject(DataType = DataType());
+    
+    ReflectedObject(const ReflectedObject& val) = default;
+    ReflectedObject(ReflectedObject&& val) = default;
+    ReflectedObject(ReflectedObject& val)
+        : ReflectedObject(std::move(val))
+    {}
+
     template<typename U>
     ReflectedObject(U&& val)
         : m_value(std::move(val))
     {}
+
+    ReflectedObject& operator = (const ReflectedObject& val) = default;
+    ReflectedObject& operator = (ReflectedObject&&) = default;
 
     auto& GetValue() {return m_value;}
     auto& GetValue() const {return m_value;}

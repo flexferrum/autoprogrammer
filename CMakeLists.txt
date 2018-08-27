@@ -54,6 +54,8 @@ find_package(Boost REQUIRED COMPONENTS iostreams filesystem system)
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /bigobj")
     message(STATUS "CodeGenerator is compiled with enabled exceptions")
+else()
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-backtrace-limit=0")
 endif()
 
 find_package(Threads)

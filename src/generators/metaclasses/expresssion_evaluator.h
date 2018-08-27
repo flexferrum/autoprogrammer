@@ -46,7 +46,7 @@ private:
         {
             std::cout << "[ExpressionEvaluator] Exit " << scopeName << ". IsSucceeded: " << evaluator->m_evalResult << std::endl;
         }
-        void Submit(Value& val)
+        void Submit(Value val)
         {
             if (evaluator->m_currentValue && evaluator->m_evalResult)
             {

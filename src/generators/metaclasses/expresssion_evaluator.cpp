@@ -39,7 +39,7 @@ void ExpressionEvaluator::VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr*
         m_evalResult = value_ops::CallMember(m_interpreter, object, method, args, result);
     }
 
-    vScope.Submit(result);
+    vScope.Submit(std::move(result));
 }
 
 void ExpressionEvaluator::VisitDeclRefExpr(const clang::DeclRefExpr* expr)
