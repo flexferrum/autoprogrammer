@@ -19,9 +19,12 @@ public:
     ExpressionEvaluator(InterpreterImpl* interpreter, Value& result, bool& isOk);
 
     void VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr* expr);
+    void VisitCXXConstructExpr(const clang::CXXConstructExpr* expr);
     void VisitDeclRefExpr(const clang::DeclRefExpr* expr);
     void VisitImplicitCastExpr(const clang::ImplicitCastExpr* expr);
     void VisitStringLiteral(const clang::StringLiteral* expr);
+    void VisitExprWithCleanups(const clang::ExprWithCleanups* expr);
+    void VisitMaterializeTemporaryExpr(const clang::MaterializeTemporaryExpr* expr);
 
 private:
     struct VisitorScope
@@ -58,7 +61,7 @@ private:
     };
 
     bool EvalSubexpr(const clang::Expr* expr, Value& val);
-    bool CalculateCallArgs(const clang::CallExpr* expr, std::vector<Value>& args);
+    bool CalculateCallArgs(const clang::Expr* const* args, unsigned numArgs, std::vector<Value>& argValues);
     void ReportError(const clang::SourceLocation& loc, const std::string& errMsg);
 
 private:

@@ -64,6 +64,15 @@ bool ReflectedMethods::ClassInfo_variables(InterpreterImpl* interpreter, reflect
     return true;
 }
 
+bool ReflectedMethods::ClassInfo_functions(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result)
+{
+    auto rangePtr = MakeStdCollectionRefRange(&obj->methods);
+    result = Value(ReflectedObject(rangePtr));
+
+    std::cout << "#### Range to ClassInfo::functions created" << std::endl;
+    return true;
+}
+
 bool ReflectedMethods::RangeT_empty(InterpreterImpl* interpreter, RangeTPtr obj, Value& result)
 {
     result = Value(obj->Empty());

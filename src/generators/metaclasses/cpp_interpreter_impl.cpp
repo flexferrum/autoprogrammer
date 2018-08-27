@@ -391,31 +391,36 @@ bool InterpreterImpl::ExecuteVarDecl(const VarDecl* decl)
     if (!decl->hasLocalStorage())
         return true;
 
-    Value evalResult;
-#if 0
-    evalResult.set(decl, Info.CurrentCall->Index);
-    APValue &Val = Info.CurrentCall->createTemporary(decl, true);
+    ScopeStack::DeclInfo& localVar = CreateLocalVar(decl);
 
-    const Expr *InitE = decl->getInit();
-    if (!InitE) {
-        Info.FFDiag(decl->getLocStart(), diag::note_constexpr_uninitialized)
-                << false << decl->getType();
-        Val = APValue();
-        return false;
+    const Expr *initExpr = decl->getInit();
+    if (!initExpr)
+    {
+        assert(false);
     }
-
-    if (InitE->isValueDependent())
-        return false;
-
-    if (!EvaluateInPlace(Val, Info, evalResult, InitE)) {
-        // Wipe out any partially-computed value, to allow tracking that this
-        // evaluation failed.
-        Val = APValue();
-        return false;
+    else
+    {
+        Value initVal;
+        if (!ExecuteExpression(initExpr, initVal))
+            return false;
+        localVar.val.AssignValue(std::move(initVal));
     }
-#endif
 
     return true;
+}
+
+ScopeStack::DeclInfo InterpreterImpl::CreateLocalVar(const VarDecl* decl)
+{
+    ScopeStack::DeclInfo init;
+    init.decl = cast<NamedDecl>(decl);
+    init.isLifetimeExtended = true;
+
+    m_scopes.stack.push_back(std::move(init));
+    auto& result = m_scopes.stack.back();
+    m_visibleDecls[init.decl] = Value::InternalRef(&result.val);
+    std::cout << "Local variable created: " << decl->getNameAsString() << std::endl;
+
+    return result;
 }
 
 bool InterpreterImpl::ExecuteDecl(const Decl* D)
@@ -434,11 +439,15 @@ bool InterpreterImpl::ExecuteDecl(const Decl* D)
     return OK;
 }
 
+
 nonstd::expected<Value, std::string> InterpreterImpl::GetDeclReference(const clang::NamedDecl* decl)
 {
     auto p = m_visibleDecls.find(decl);
     if (p != m_visibleDecls.end())
+    {
+        std::cout << "Variable resolved: '" + decl->getNameAsString() + "'" << std::endl;
         return Value(p->second);
+    }
 
     Value val;
     if (DetectSpecialDecl(decl, val))

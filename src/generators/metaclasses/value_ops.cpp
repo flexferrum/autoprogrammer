@@ -63,8 +63,8 @@ auto ApplyUnwrapped(Value&& val, Fn&& fn)
 template<typename V, typename Value, typename ... Args>
 auto Apply(Value&& val, Args&& ... args)
 {
-    return ApplyUnwrapped(std::forward<Value>(val), [&args...](auto& v) {
-        return boost::apply_visitor(V(std::forward<Args>(args)...), v);
+    return ApplyUnwrapped(std::forward<Value>(val), [visitor = V(std::forward<Args>(args)...)](auto& v) {
+        return boost::apply_visitor(visitor, v);
     });
 }
 
@@ -72,8 +72,8 @@ template<typename V, typename Value, typename ... Args>
 auto Apply2(Value&& val1, Value&& val2, Args&& ... args)
 {
     return ApplyUnwrapped(std::forward<Value>(val1), [&val2, &args...](auto& uwVal1) {
-        return ApplyUnwrapped(std::forward<Value>(val2), [&uwVal1, &args...](auto& uwVal2) {
-            return boost::apply_visitor(V(args...), uwVal1, uwVal2);
+        return ApplyUnwrapped(std::forward<Value>(val2), [&uwVal1, visitor = V(std::forward<Args>(args)...)](auto& uwVal2) {
+            return boost::apply_visitor(visitor, uwVal1, uwVal2);
         });
     });
 }
@@ -133,7 +133,7 @@ struct CallMemberVisitor : boost::static_visitor<bool>
     {
         return Invoke(fn, std::forward<U>(val), std::make_index_sequence<sizeof ... (Args)>());
     }
-    
+
     template<typename U>
     auto operator()(U&& val) const -> decltype(Call(fn, std::forward<U>(val)))
     {
@@ -172,6 +172,7 @@ bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethod
         {"meta::CompilerImpl::message/void message(const char *msg)"s, thunkMaker(&ReflectedMethods::Compiler_message)},
         {"meta::CompilerImpl::require/void require(bool, const char *message)"s, thunkMaker(&ReflectedMethods::Compiler_require)},
         {"meta::ClassInfo::variables/Range<meta::MemberInfo> &variables() const"s, thunkMaker(&ReflectedMethods::ClassInfo_variables)},
+        {"meta::ClassInfo::functions/Range<meta::MethodInfo> &functions() const"s, thunkMaker(&ReflectedMethods::ClassInfo_functions)},
         {"meta::Range<meta::MemberInfo>::empty/bool empty() const"s, thunkMaker(&ReflectedMethods::RangeT_empty)},
     };
 

@@ -34,11 +34,42 @@ void ExpressionEvaluator::VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr*
     Value object;
     std::vector<Value> args;
     Value result;
-    if (EvalSubexpr(expr->getImplicitObjectArgument(), object) && CalculateCallArgs(expr, args))
+    if (EvalSubexpr(expr->getImplicitObjectArgument(), object) && CalculateCallArgs(expr->getArgs(), expr->getNumArgs(), args))
     {
         m_evalResult = value_ops::CallMember(m_interpreter, object, method, args, result);
     }
 
+    vScope.Submit(std::move(result));
+}
+
+void ExpressionEvaluator::VisitCXXConstructExpr(const clang::CXXConstructExpr* expr)
+{
+    VisitorScope vScope(this, "VisitCXXConstructExpr");
+    Value result;
+    auto ctorDecl = expr->getConstructor();
+    if (ctorDecl->isCopyConstructor() || ctorDecl->isMoveConstructor())
+    {
+        std::vector<Value> args;
+        Value result;
+        if (!CalculateCallArgs(expr->getArgs(), expr->getNumArgs(), args))
+            return;
+
+        if (ctorDecl->isCopyConstructor())
+        {
+            result = args[0];
+        }
+        else
+        {
+            result.AssignValue(std::move(args[0]));
+        }
+
+    }
+    else
+    {
+        std::cout << "!!!!! Unsupported (yet!) type of ctor!" << std::endl;
+        m_evalResult = false;
+        return;
+    }
     vScope.Submit(std::move(result));
 }
 
@@ -59,23 +90,45 @@ void ExpressionEvaluator::VisitDeclRefExpr(const clang::DeclRefExpr* expr)
 
 void ExpressionEvaluator::VisitImplicitCastExpr(const clang::ImplicitCastExpr* expr)
 {
-    VisitorScope vScope(this, "VisitDeclRefExpr");
+    VisitorScope vScope(this, "VisitImplicitCastExpr");
     Value srcVal;
     if (!EvalSubexpr(expr->getSubExpr(), srcVal))
         return;
 
-    vScope.Submit(srcVal);
-
+    vScope.Submit(std::move(srcVal));
 }
 
 void ExpressionEvaluator::VisitStringLiteral(const clang::StringLiteral* expr)
 {
-    VisitorScope vScope(this, "VisitDeclRefExpr");
+    VisitorScope vScope(this, "VisitStringLiteral");
     Value val(expr->getString().str());
 
     std::cout << "String literal found: '" << expr->getString().str() << "'" << std::endl;
 
-    vScope.Submit(val);
+    vScope.Submit(std::move(val));
+}
+
+void ExpressionEvaluator::VisitExprWithCleanups(const clang::ExprWithCleanups* expr)
+{
+    VisitorScope vScope(this, "VisitExprWithCleanups");
+    Value val;
+
+    if (!EvalSubexpr(expr->getSubExpr(), val))
+        return;
+
+    vScope.Submit(std::move(val));
+}
+
+void ExpressionEvaluator::VisitMaterializeTemporaryExpr(const clang::MaterializeTemporaryExpr* expr)
+{
+    VisitorScope vScope(this, "VisitMaterializeTemporaryExpr");
+
+    Value val;
+
+    if (!EvalSubexpr(expr->GetTemporaryExpr(), val))
+        return;
+
+    vScope.Submit(std::move(val));
 }
 
 bool ExpressionEvaluator::EvalSubexpr(const Expr* expr, Value& val)
@@ -87,18 +140,17 @@ bool ExpressionEvaluator::EvalSubexpr(const Expr* expr, Value& val)
     return m_evalResult;
 }
 
-bool ExpressionEvaluator::CalculateCallArgs(const clang::CallExpr* expr, std::vector<Value>& args)
+bool ExpressionEvaluator::CalculateCallArgs(const Expr* const* args, unsigned numArgs, std::vector<Value>& argValues)
 {
-    int argNum = 0;
-    for (auto& arg: expr->arguments())
+    for (unsigned argNum = 0; argNum < numArgs; ++ argNum)
     {
+        auto& arg = args[argNum];
         std::cout << "[ExpressionEvaluator] Enter evaluation of arg #" << argNum << "'" << std::endl;
         Value val;
         if (!EvalSubexpr(arg, val))
             return false;
-        args.push_back(std::move(val));
+        argValues.push_back(std::move(val));
         std::cout << "[ExpressionEvaluator] Exit evaluation of arg #" << argNum << "'" << std::endl;
-        argNum ++;
     }
 
     return true;

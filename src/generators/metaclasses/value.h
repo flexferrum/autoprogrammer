@@ -61,12 +61,14 @@ public:
     Value(DataType val = DataType())
         : m_value(std::move(val))
     {}
-    
+
     Value(const Value& val) = default;
     Value(Value&& val) = default;
+#ifndef _MSC_VER
     Value(Value& val)
         : Value(std::move(val))
     {}
+#endif
 
     template<typename U>
     Value(U&& val)
@@ -77,7 +79,7 @@ public:
     Value(const U& val)
         : m_value(std::move(val))
     {}
-    
+
     Value& operator = (const Value& val) = default;
     Value& operator = (Value&&) = default;
 
@@ -102,6 +104,15 @@ public:
     void Clear()
     {
         m_value = EmptyValue();
+    }
+
+    void AssignValue(Value val)
+    {
+        InternalRef* intRef = boost::get<InternalRef>(&m_value);
+        if (intRef)
+            intRef->pointee->AssignValue(std::move(val));
+        else
+            std::swap(m_value, val.m_value);
     }
 
 private:

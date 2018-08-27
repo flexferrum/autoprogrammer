@@ -46,7 +46,7 @@ public:
     }
     ~RAIIScope()
     {
-        Cleanup();
+        // Cleanup();
     }
 private:
     void Cleanup()
@@ -117,6 +117,8 @@ private:
     bool ExecuteAsBooleanCondition(const clang::Expr* expr, bool& result);
     bool ExecuteVarDecl(const clang::VarDecl *decl);
     bool ExecuteDecl(const clang::Decl *D);
+
+    ScopeStack::DeclInfo CreateLocalVar(const clang::VarDecl *decl);
 
     nonstd::expected<Value, std::string> GetDeclReference(const clang::NamedDecl* decl);
     bool DetectSpecialDecl(const clang::NamedDecl* decl, Value& val);
