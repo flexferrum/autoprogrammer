@@ -118,7 +118,7 @@ private:
     bool ExecuteVarDecl(const clang::VarDecl *decl);
     bool ExecuteDecl(const clang::Decl *D);
 
-    ScopeStack::DeclInfo CreateLocalVar(const clang::VarDecl *decl);
+    ScopeStack::DeclInfo* CreateLocalVar(const clang::VarDecl *decl);
 
     nonstd::expected<Value, std::string> GetDeclReference(const clang::NamedDecl* decl);
     bool DetectSpecialDecl(const clang::NamedDecl* decl, Value& val);

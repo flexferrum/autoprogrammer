@@ -174,6 +174,8 @@ bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethod
         {"meta::ClassInfo::variables/Range<meta::MemberInfo> &variables() const"s, thunkMaker(&ReflectedMethods::ClassInfo_variables)},
         {"meta::ClassInfo::functions/Range<meta::MethodInfo> &functions() const"s, thunkMaker(&ReflectedMethods::ClassInfo_functions)},
         {"meta::Range<meta::MemberInfo>::empty/bool empty() const"s, thunkMaker(&ReflectedMethods::RangeT_empty)},
+        {"meta::Range<meta::MethodInfo>::begin/meta::Range<meta::MethodInfo>::iterator begin()"s, thunkMaker(&ReflectedMethods::RangeT_begin)},
+        {"meta::Range<meta::MethodInfo>::end/meta::Range<meta::MethodInfo>::iterator end()"s, thunkMaker(&ReflectedMethods::RangeT_end)},
     };
 
     std::string methodName;
@@ -194,7 +196,7 @@ bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethod
     }
 
 
-    std::cout << "### Trying to call '" << methodName << "'" << std::endl;
+    std::cout << "### Trying to call '" << methodName << "' for object of type " << obj.GetValue().which() << std::endl;
     return p->second(thunk, interpreter, obj, args, result);
 }
 } // namespace value_ops

@@ -23,14 +23,26 @@ public:
     virtual ~RangeT() {}
 
     virtual bool Empty() = 0;
+    virtual Value Begin() = 0;
+    virtual Value End() = 0;
+    virtual Value ConstBegin() = 0;
+    virtual Value ConstEnd() = 0;
 };
 
 using RangeTPtr = std::shared_ptr<RangeT>;
 
+class IteratorT
+{
+public:
+    virtual ~IteratorT() {}
+};
+
+using IteratorTPtr = std::shared_ptr<IteratorT>;
+
 class ReflectedObject
 {
 public:
-    using DataType = boost::variant<Compiler, reflection::ClassInfoPtr, reflection::MethodInfoPtr, reflection::MemberInfoPtr, RangeTPtr>;
+    using DataType = boost::variant<Compiler, reflection::ClassInfoPtr, reflection::MethodInfoPtr, reflection::MemberInfoPtr, RangeTPtr, IteratorTPtr>;
 
     ReflectedObject(DataType = DataType());
 
@@ -65,6 +77,8 @@ public:
     static bool ClassInfo_variables(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result);
     static bool ClassInfo_functions(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result);
     static bool RangeT_empty(InterpreterImpl* interpreter, RangeTPtr obj, Value& result);
+    static bool RangeT_begin(InterpreterImpl* interpreter, RangeTPtr obj, Value& result);
+    static bool RangeT_end(InterpreterImpl* interpreter, RangeTPtr obj, Value& result);
 };
 
 } // interpreter

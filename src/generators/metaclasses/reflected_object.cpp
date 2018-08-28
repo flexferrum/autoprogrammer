@@ -7,6 +7,24 @@ namespace codegen
 {
 namespace interpreter
 {
+    
+template<typename It>
+class StdCollectionIterator : public IteratorT
+{
+public:
+    StdCollectionIterator(It it)
+        : m_it(it)
+    {}
+    
+private:
+    It m_it;
+};
+
+template<typename It>
+auto MakeStdCollectionIterator(It&& it)
+{
+    return std::make_shared<StdCollectionIterator<It>>(std::forward<It>(it));
+}
 
 template<typename Coll>
 class StdCollectionRefRange : public RangeT
@@ -19,9 +37,24 @@ public:
     // RangeT interface
     bool Empty() override
     {
+        std::cout << "StdCollectionRefRange::Empty. Coll=" << m_coll << std::endl;
         return m_coll->empty();
     }
 
+    Value Begin() override
+    {
+        std::cout << "StdCollectionRefRange::Begin. Coll=" << m_coll << std::endl;
+        return ReflectedObject(MakeStdCollectionIterator(m_coll->begin()));
+    }
+    Value End() override
+    {
+        std::cout << "StdCollectionRefRange::End. Coll=" << m_coll << std::endl;
+        return ReflectedObject(MakeStdCollectionIterator(m_coll->end()));
+    }
+
+    Value ConstBegin() override {return Value();}
+    Value ConstEnd() override {return Value();}
+    
 private:
     Coll* m_coll;
 };
@@ -75,11 +108,26 @@ bool ReflectedMethods::ClassInfo_functions(InterpreterImpl* interpreter, reflect
 
 bool ReflectedMethods::RangeT_empty(InterpreterImpl* interpreter, RangeTPtr obj, Value& result)
 {
+    std::cout << "#### ReflectedMethods::RangeT_empty called. Object: " << obj << std::endl;
     result = Value(obj->Empty());
 
-    std::cout << "#### ReflectedMethods::RangeT_empty called" << std::endl;
     return true;
 }
 
+bool ReflectedMethods::RangeT_begin(InterpreterImpl* interpreter, RangeTPtr obj, Value& result)
+{
+    result = Value(obj->Begin());
+
+    std::cout << "#### ReflectedMethods::RangeT_begin called. Object: " << obj << std::endl;
+    return true;
+}
+
+bool ReflectedMethods::RangeT_end(InterpreterImpl* interpreter, RangeTPtr obj, Value& result)
+{
+    result = Value(obj->End());
+
+    std::cout << "#### ReflectedMethods::RangeT_end called. Object: " << obj << std::endl;
+    return true;
+}
 } // interpreter
 } // codegen

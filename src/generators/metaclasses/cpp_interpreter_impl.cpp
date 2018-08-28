@@ -391,7 +391,7 @@ bool InterpreterImpl::ExecuteVarDecl(const VarDecl* decl)
     if (!decl->hasLocalStorage())
         return true;
 
-    ScopeStack::DeclInfo& localVar = CreateLocalVar(decl);
+    ScopeStack::DeclInfo* localVar = CreateLocalVar(decl);
 
     const Expr *initExpr = decl->getInit();
     if (!initExpr)
@@ -403,13 +403,13 @@ bool InterpreterImpl::ExecuteVarDecl(const VarDecl* decl)
         Value initVal;
         if (!ExecuteExpression(initExpr, initVal))
             return false;
-        localVar.val.AssignValue(std::move(initVal));
+        localVar->val.AssignValue(std::move(initVal));
     }
 
     return true;
 }
 
-ScopeStack::DeclInfo InterpreterImpl::CreateLocalVar(const VarDecl* decl)
+ScopeStack::DeclInfo* InterpreterImpl::CreateLocalVar(const VarDecl* decl)
 {
     ScopeStack::DeclInfo init;
     init.decl = cast<NamedDecl>(decl);
@@ -420,7 +420,7 @@ ScopeStack::DeclInfo InterpreterImpl::CreateLocalVar(const VarDecl* decl)
     m_visibleDecls[init.decl] = Value::InternalRef(&result.val);
     std::cout << "Local variable created: " << decl->getNameAsString() << std::endl;
 
-    return result;
+    return &result;
 }
 
 bool InterpreterImpl::ExecuteDecl(const Decl* D)
