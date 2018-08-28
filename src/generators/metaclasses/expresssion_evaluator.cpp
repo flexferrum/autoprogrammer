@@ -50,10 +50,10 @@ void ExpressionEvaluator::VisitCXXConstructExpr(const clang::CXXConstructExpr* e
     if (ctorDecl->isCopyConstructor() || ctorDecl->isMoveConstructor())
     {
         std::vector<Value> args;
-        Value result;
         if (!CalculateCallArgs(expr->getArgs(), expr->getNumArgs(), args))
             return;
 
+        std::cout << "[ExpressionEvaluator] Constructor call. Arg0 type: " << args[0].GetValue().which() << std::endl;
         if (ctorDecl->isCopyConstructor())
         {
             result = args[0];
@@ -70,6 +70,28 @@ void ExpressionEvaluator::VisitCXXConstructExpr(const clang::CXXConstructExpr* e
         m_evalResult = false;
         return;
     }
+    vScope.Submit(std::move(result));
+}
+
+void ExpressionEvaluator::VisitCXXOperatorCallExpr(const clang::CXXOperatorCallExpr* expr)
+{
+    VisitorScope vScope(this, "VisitCXXOperatorCallExpr");
+    std::cout << "[ExpressionEvaluator] Overloaded operator call found. Num args: " << expr->getNumArgs() << ", DeclKind: '" << expr->getCalleeDecl()->getDeclKindName() << "'" << std::endl;
+
+    const clang::Decl* calleeDecl = expr->getCalleeDecl();
+    const clang::CXXMethodDecl* operAsMethod = llvm::dyn_cast_or_null<CXXMethodDecl>(calleeDecl);
+
+    std::vector<Value> args;
+    Value result;
+    if (!CalculateCallArgs(expr->getArgs(), expr->getNumArgs(), args))
+        return;
+
+    if (operAsMethod != nullptr)
+    {
+        std::vector<Value> newArgs(std::make_move_iterator(args.begin() + 1), std::make_move_iterator(args.end()));
+        m_evalResult = value_ops::CallMember(m_interpreter, args[0], operAsMethod, newArgs, result);
+    }
+
     vScope.Submit(std::move(result));
 }
 

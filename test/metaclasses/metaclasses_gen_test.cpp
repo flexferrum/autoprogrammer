@@ -7,3 +7,20 @@
 #include <array>
 #include <iterator>
 
+class TestIfaceImpl : public TestIface
+{
+    // TestIface interface
+public:
+    void TestMethod1() override;
+    std::string TestMethod2(int param) const override;
+};
+
+void TestIfaceImpl::TestMethod1()
+{
+}
+
+std::string TestIfaceImpl::TestMethod2(int) const
+{
+    return "Hello World!";
+}
+

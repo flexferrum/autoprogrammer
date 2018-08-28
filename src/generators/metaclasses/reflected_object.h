@@ -35,6 +35,11 @@ class IteratorT
 {
 public:
     virtual ~IteratorT() {}
+
+    virtual bool IsEqual(const IteratorT* other) const = 0;
+    virtual Value GetValue() const = 0;
+    virtual void PrefixInc() = 0;
+    // virtual Value PostfixInc() const = 0;
 };
 
 using IteratorTPtr = std::shared_ptr<IteratorT>;
@@ -74,11 +79,20 @@ class ReflectedMethods
 public:
     static bool Compiler_message(InterpreterImpl* interpreter, const Compiler& obj, Value& result, const std::string& msg);
     static bool Compiler_require(InterpreterImpl* interpreter, const Compiler& obj, Value& result, bool testResult, const std::string& msg);
+
     static bool ClassInfo_variables(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result);
     static bool ClassInfo_functions(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result);
+
+    static bool MethodInfo_is_public(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
+    static bool MethodInfo_make_pure_virtual(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
+
     static bool RangeT_empty(InterpreterImpl* interpreter, RangeTPtr obj, Value& result);
     static bool RangeT_begin(InterpreterImpl* interpreter, RangeTPtr obj, Value& result);
     static bool RangeT_end(InterpreterImpl* interpreter, RangeTPtr obj, Value& result);
+
+    static bool IteratorT_OperNotEqual_Same(InterpreterImpl* interpreter, IteratorTPtr left, Value& result, IteratorTPtr right);
+    static bool IteratorT_OperStar(InterpreterImpl* interpreter, IteratorTPtr left, Value& result);
+    static bool IteratorT_OperPrefixInc(InterpreterImpl* interpreter, IteratorTPtr left, Value& result);
 };
 
 } // interpreter

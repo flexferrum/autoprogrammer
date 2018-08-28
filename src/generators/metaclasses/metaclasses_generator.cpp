@@ -32,16 +32,7 @@ R"(
 
 {% macro MethodsDecl(class, access) %}
 {% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'in', access) %}
-    {{'explicit ' if method.isExplicitCtor}}
-    {{'virtual ' if method.isVirtual}}
-    {{'constexpr ' if method.isConstexpr}}
-    {{'static ' if method.isStatic}}
-    {{ method.returnType.printedName }} {{method.name}}({{method.params | map(attribute='fullDecl') | join(', ')}})
-    {{'const ' if method.isConst}}
-    {{'noexcept ' if method.isNoExcept}}
-    {{'= 0' if method.isPureVirtual}}
-    {{'= delete' if method.isDeleted}}
-    {{'= default' if method.isDefault}};
+    {{'explicit ' if method.isExplicitCtor}}{{'virtual ' if method.isVirtual}}{{'constexpr ' if method.isConstexpr}}{{'static ' if method.isStatic}}{{ method.returnType.printedName }} {{method.name}}({{method.params | map(attribute='fullDecl') | join(', ')}}){{'const ' if method.isConst}}{{'noexcept ' if method.isNoExcept}}{{'= 0' if method.isPure}}{{'= delete' if method.isDeleted}}{{'= default' if method.isDefault}};
 {% endfor %}
 {% endmacro %}
 

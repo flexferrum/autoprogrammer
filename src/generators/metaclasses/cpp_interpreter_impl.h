@@ -31,7 +31,7 @@ struct ScopeStack
         bool isLifetimeExtended = false;
     };
 
-    std::vector<DeclInfo> stack;
+    std::deque<DeclInfo> stack;
     std::unordered_map<const clang::NamedDecl*, Value::InternalRef>* m_visibleDecls;
 };
 

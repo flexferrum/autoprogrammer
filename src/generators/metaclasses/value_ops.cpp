@@ -176,6 +176,11 @@ bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethod
         {"meta::Range<meta::MemberInfo>::empty/bool empty() const"s, thunkMaker(&ReflectedMethods::RangeT_empty)},
         {"meta::Range<meta::MethodInfo>::begin/meta::Range<meta::MethodInfo>::iterator begin()"s, thunkMaker(&ReflectedMethods::RangeT_begin)},
         {"meta::Range<meta::MethodInfo>::end/meta::Range<meta::MethodInfo>::iterator end()"s, thunkMaker(&ReflectedMethods::RangeT_end)},
+        {"meta::Range<meta::MethodInfo>::iterator::operator!=/bool operator!=(const meta::Range<meta::MethodInfo>::iterator &) const"s, thunkMaker(&ReflectedMethods::IteratorT_OperNotEqual_Same)},
+        {"meta::Range<meta::MethodInfo>::iterator::operator*/meta::MethodInfo &operator*()"s, thunkMaker(&ReflectedMethods::IteratorT_OperStar)},
+        {"meta::Range<meta::MethodInfo>::iterator::operator++/meta::Range<meta::MethodInfo>::iterator &operator++()"s, thunkMaker(&ReflectedMethods::IteratorT_OperPrefixInc)},
+        {"meta::ClassMemberBase::is_public/bool is_public() const"s, thunkMaker(&ReflectedMethods::MethodInfo_is_public)},
+        {"meta::MethodInfo::make_pure_virtual/void make_pure_virtual()"s, thunkMaker(&ReflectedMethods::MethodInfo_make_pure_virtual)},
     };
 
     std::string methodName;
@@ -196,7 +201,7 @@ bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethod
     }
 
 
-    std::cout << "### Trying to call '" << methodName << "' for object of type " << obj.GetValue().which() << std::endl;
+    std::cout << "### Trying to call '" << methodName << "' for object of type " << GetActualValue(obj)->GetValue().which() << std::endl;
     return p->second(thunk, interpreter, obj, args, result);
 }
 } // namespace value_ops

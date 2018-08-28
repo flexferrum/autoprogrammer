@@ -110,9 +110,10 @@ public:
     {
         InternalRef* intRef = boost::get<InternalRef>(&m_value);
         if (intRef)
+            // intRef->pointee->AssignValue(std::move(val));
             intRef->pointee->AssignValue(std::move(val));
         else
-            std::swap(m_value, val.m_value);
+            m_value = val.m_value;
     }
 
 private:

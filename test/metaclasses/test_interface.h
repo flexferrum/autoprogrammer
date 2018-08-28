@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 
+// 'Interface' metaclass declaration
 METACLASS_DECL(Interface)
 {
     static void GenerateDecl()
@@ -15,20 +16,9 @@ METACLASS_DECL(Interface)
 
         for (auto& f : $Interface.functions())
         {
-            compiler.require(f.is_implicit() || (!f.is_copy_ctor() && !f.is_move_ctor()), "Interface can't contain copy or move constructor");
-            if (!f.has_access())
-                f.make_public();
-
             compiler.require(f.is_public(), "Inteface function must be public");
             f.make_pure_virtual();
         }
-    }
-
-
-    static int GenerateImpl()
-    {
-        int a = 0;
-        return a + 2;
     }
 };
 
@@ -39,14 +29,19 @@ public:
     std::string TestMethod2(int param) const;
 };
 
+#if 0
 METACLASS_INST(Interface, BadTestIface)
 {
 public:
     void TestMethod1();
     std::string TestMethod2(int param) const;
 
+protected:
+    void TestMethod3();
+
 private:
     int m_val;
 };
+#endif
 
 #endif // TEST_ENUMS_H

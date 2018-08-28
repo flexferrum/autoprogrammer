@@ -20,6 +20,7 @@ public:
 
     void VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr* expr);
     void VisitCXXConstructExpr(const clang::CXXConstructExpr* expr);
+    void VisitCXXOperatorCallExpr(const clang::CXXOperatorCallExpr* expr);
     void VisitDeclRefExpr(const clang::DeclRefExpr* expr);
     void VisitImplicitCastExpr(const clang::ImplicitCastExpr* expr);
     void VisitStringLiteral(const clang::StringLiteral* expr);

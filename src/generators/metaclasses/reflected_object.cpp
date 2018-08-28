@@ -7,21 +7,40 @@ namespace codegen
 {
 namespace interpreter
 {
-    
+
 template<typename It>
-class StdCollectionIterator : public IteratorT
+class StdCollectionIterator : public IteratorT, public std::enable_shared_from_this<StdCollectionIterator<It>>
 {
 public:
+    using ThisType = StdCollectionIterator<It>;
+
     StdCollectionIterator(It it)
         : m_it(it)
     {}
-    
+
+    bool IsEqual(const IteratorT *other) const override
+    {
+        const ThisType* right = static_cast<const ThisType*>(other);
+        return m_it == right->m_it;
+    }
+
+    Value GetValue() const override
+    {
+        auto val = *m_it;
+        return Value(val);
+    }
+
+    void PrefixInc() override
+    {
+        ++ m_it;
+    }
+
 private:
     It m_it;
 };
 
 template<typename It>
-auto MakeStdCollectionIterator(It&& it)
+IteratorTPtr MakeStdCollectionIterator(It&& it)
 {
     return std::make_shared<StdCollectionIterator<It>>(std::forward<It>(it));
 }
@@ -54,7 +73,7 @@ public:
 
     Value ConstBegin() override {return Value();}
     Value ConstEnd() override {return Value();}
-    
+
 private:
     Coll* m_coll;
 };
@@ -106,6 +125,24 @@ bool ReflectedMethods::ClassInfo_functions(InterpreterImpl* interpreter, reflect
     return true;
 }
 
+bool ReflectedMethods::MethodInfo_is_public(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result)
+{
+    result = Value(obj->accessType == reflection::AccessType::Public);
+
+    std::cout << "#### ReflectedMethods::MethodInfo_is_public called. Object: " << obj << std::endl;
+    return true;
+}
+
+bool ReflectedMethods::MethodInfo_make_pure_virtual(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result)
+{
+    result = Value(VoidValue());
+    obj->isPure = true;
+    obj->isVirtual = true;
+
+    std::cout << "#### ReflectedMethods::MethodInfo_make_pure_virtual. Object: " << obj << std::endl;
+    return true;
+}
+
 bool ReflectedMethods::RangeT_empty(InterpreterImpl* interpreter, RangeTPtr obj, Value& result)
 {
     std::cout << "#### ReflectedMethods::RangeT_empty called. Object: " << obj << std::endl;
@@ -118,7 +155,7 @@ bool ReflectedMethods::RangeT_begin(InterpreterImpl* interpreter, RangeTPtr obj,
 {
     result = Value(obj->Begin());
 
-    std::cout << "#### ReflectedMethods::RangeT_begin called. Object: " << obj << std::endl;
+    std::cout << "#### ReflectedMethods::RangeT_begin called. Object type: " << result.GetValue().which() << std::endl;
     return true;
 }
 
@@ -126,7 +163,32 @@ bool ReflectedMethods::RangeT_end(InterpreterImpl* interpreter, RangeTPtr obj, V
 {
     result = Value(obj->End());
 
-    std::cout << "#### ReflectedMethods::RangeT_end called. Object: " << obj << std::endl;
+    std::cout << "#### ReflectedMethods::RangeT_end called. Object type: " << result.GetValue().which() << std::endl;
+    return true;
+}
+
+bool ReflectedMethods::IteratorT_OperNotEqual_Same(InterpreterImpl* interpreter, IteratorTPtr left, Value& result, IteratorTPtr right)
+{
+    result = Value(!left->IsEqual(right.get()));
+
+    std::cout << "#### IteratorT_OperNotEqual called. Object: " << left << std::endl;
+    return true;
+}
+
+bool ReflectedMethods::IteratorT_OperStar(InterpreterImpl* interpreter, IteratorTPtr left, Value& result)
+{
+    result = Value(left->GetValue());
+
+    std::cout << "#### IteratorT_IteratorT_OperStar called." << std::endl;
+    return true;
+}
+
+bool ReflectedMethods::IteratorT_OperPrefixInc(InterpreterImpl* interpreter, IteratorTPtr left, Value& result)
+{
+    left->PrefixInc();
+    result = Value(left);
+
+    std::cout << "#### IteratorT_IteratorT_OperPrefixInc called." << std::endl;
     return true;
 }
 } // interpreter
