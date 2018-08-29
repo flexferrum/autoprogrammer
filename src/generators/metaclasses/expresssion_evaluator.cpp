@@ -153,6 +153,68 @@ void ExpressionEvaluator::VisitMaterializeTemporaryExpr(const clang::Materialize
     vScope.Submit(std::move(val));
 }
 
+void ExpressionEvaluator::VisitBinaryOperator(const clang::BinaryOperator* expr)
+{
+    VisitorScope vScope(this, "VisitBinaryOperator");
+
+    std::cout << "[ExpressionEvaluator] Binary operator found: '" << expr->getOpcodeStr().str() << "'" << std::endl;
+
+    Value result;
+
+    if (expr->isLogicalOp())
+    {
+        Value lhs;
+        Value rhs;
+        if (!EvalSubexpr(expr->getLHS(), lhs))
+            return;
+        
+        bool leftBool = value_ops::ConvertToBool(m_interpreter, lhs);
+        std::cout << ">>>>>>>>>>> [ExpressionEvaluator] Logical operator left side: " << leftBool << std::endl;
+        
+        if (expr->getOpcode() == BO_LAnd)
+        {
+            std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #176" << std::endl;
+            if (leftBool)
+            {
+                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #179" << std::endl;
+                EvalSubexpr(expr->getRHS(), rhs);
+                result = Value(value_ops::ConvertToBool(m_interpreter, rhs));
+                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #182" << std::endl;
+            }
+            else
+            {
+                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #186" << std::endl;
+                result = Value(false);
+            }                
+        }
+        else // BO_LOr
+        {
+            std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #192" << std::endl;
+            if (!leftBool)
+            {
+                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #195" << std::endl;
+                EvalSubexpr(expr->getRHS(), rhs);
+                result = Value(value_ops::ConvertToBool(m_interpreter, rhs));
+                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #198" << std::endl;
+            }
+            else
+            {
+                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #202" << std::endl;
+                result = Value(true);
+            }                
+        }
+    }
+    else
+    {
+        assert(false); // TODO: !!!!
+    }
+//    if (!EvalSubexpr(expr->GetTemporaryExpr(), val))
+//        return;
+    
+
+    vScope.Submit(std::move(result));
+}
+
 bool ExpressionEvaluator::EvalSubexpr(const Expr* expr, Value& val)
 {
     auto prevVal = m_currentValue;

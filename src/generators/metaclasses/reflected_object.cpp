@@ -125,6 +125,30 @@ bool ReflectedMethods::ClassInfo_functions(InterpreterImpl* interpreter, reflect
     return true;
 }
 
+bool ReflectedMethods::MethodInfo_is_implicit(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result)
+{
+    result = Value(obj->isImplicit);
+
+    std::cout << "#### ReflectedMethods::MethodInfo_is_implicit called. IsImplicit: " << obj->isImplicit << std::endl;
+    return true;
+}
+
+bool ReflectedMethods::MethodInfo_is_copy_ctor(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result)
+{
+    result = Value(obj->constructorType == reflection::ConstructorType::Copy);
+
+    std::cout << "#### ReflectedMethods::MethodInfo_is_copy_ctor called. Object: " << obj << std::endl;
+    return true;
+}
+
+bool ReflectedMethods::MethodInfo_is_move_ctor(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result)
+{
+    result = Value(obj->constructorType == reflection::ConstructorType::Move);
+
+    std::cout << "#### ReflectedMethods::MethodInfo_is_move_ctor called. Object: " << obj << std::endl;
+    return true;
+}
+
 bool ReflectedMethods::MethodInfo_is_public(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result)
 {
     result = Value(obj->accessType == reflection::AccessType::Public);

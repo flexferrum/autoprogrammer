@@ -83,6 +83,9 @@ public:
     static bool ClassInfo_variables(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result);
     static bool ClassInfo_functions(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result);
 
+    static bool MethodInfo_is_implicit(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
+    static bool MethodInfo_is_copy_ctor(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
+    static bool MethodInfo_is_move_ctor(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
     static bool MethodInfo_is_public(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
     static bool MethodInfo_make_pure_virtual(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
 

@@ -180,6 +180,9 @@ bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethod
         {"meta::Range<meta::MethodInfo>::iterator::operator*/meta::MethodInfo &operator*()"s, thunkMaker(&ReflectedMethods::IteratorT_OperStar)},
         {"meta::Range<meta::MethodInfo>::iterator::operator++/meta::Range<meta::MethodInfo>::iterator &operator++()"s, thunkMaker(&ReflectedMethods::IteratorT_OperPrefixInc)},
         {"meta::ClassMemberBase::is_public/bool is_public() const"s, thunkMaker(&ReflectedMethods::MethodInfo_is_public)},
+        {"meta::MethodInfo::is_implicit/bool is_implicit() const"s, thunkMaker(&ReflectedMethods::MethodInfo_is_implicit)},
+        {"meta::MethodInfo::is_copy_ctor/bool is_copy_ctor() const"s, thunkMaker(&ReflectedMethods::MethodInfo_is_copy_ctor)},
+        {"meta::MethodInfo::is_move_ctor/bool is_move_ctor() const"s, thunkMaker(&ReflectedMethods::MethodInfo_is_move_ctor)},
         {"meta::MethodInfo::make_pure_virtual/void make_pure_virtual()"s, thunkMaker(&ReflectedMethods::MethodInfo_make_pure_virtual)},
     };
 

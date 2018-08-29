@@ -16,7 +16,14 @@ METACLASS_DECL(Interface)
 
         for (auto& f : $Interface.functions())
         {
+            compiler.require(f.is_implicit() || (!f.is_copy_ctor() && !f.is_move_ctor()),
+                "Interface can't contain copy or move constructor");	
+                
+//            if (!f.has_access())	
+//                f.make_public();
+                
             compiler.require(f.is_public(), "Inteface function must be public");
+            
             f.make_pure_virtual();
         }
     }
@@ -33,6 +40,8 @@ public:
 METACLASS_INST(Interface, BadTestIface)
 {
 public:
+    Interface(const Interface&);
+
     void TestMethod1();
     std::string TestMethod2(int param) const;
 
