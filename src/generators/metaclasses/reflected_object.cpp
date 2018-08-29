@@ -157,6 +157,14 @@ bool ReflectedMethods::MethodInfo_is_public(InterpreterImpl* interpreter, reflec
     return true;
 }
 
+bool ReflectedMethods::ClassMemberBase_has_access(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result)
+{
+    result = Value(obj->accessType != reflection::AccessType::Undefined);
+
+    std::cout << "#### ReflectedMethods::ClassMemberBase_has_access called. Object: " << obj << std::endl;
+    return true;
+}
+
 bool ReflectedMethods::MethodInfo_make_pure_virtual(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result)
 {
     result = Value(VoidValue());

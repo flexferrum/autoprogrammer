@@ -120,6 +120,36 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
         return ESR_Succeeded;
     }
 
+    case Stmt::IfStmtClass:
+    {
+      const IfStmt *ifStmt = cast<IfStmt>(stmt);
+
+      // Evaluate the condition, as either a var decl or as an expression.
+      BlockScopeRAII scope(m_scopes);
+      if (const Stmt *initStmt = ifStmt->getInit())
+      {
+        auto result = ExecuteStatement(initStmt, nullptr);
+
+        if (result != ESR_Succeeded)
+          return result;
+      }
+      bool cond = false;
+      auto condVarStmt = ifStmt->getConditionVariable();
+      if (condVarStmt && !ExecuteVarDecl(condVarStmt))
+          return ESR_Failed;
+
+      if (!ExecuteAsBooleanCondition(ifStmt->getCond(), cond))
+        return ESR_Failed;
+
+      if (const Stmt *subStmt = cond ? ifStmt->getThen() : ifStmt->getElse())
+      {
+        auto result = ExecuteStatement(subStmt, nullptr);
+        if (result != ESR_Succeeded)
+          return result;
+      }
+      return ESR_Succeeded;
+    }
+
     default:
         if (const Expr *expr = dyn_cast<Expr>(stmt))
         {
@@ -155,28 +185,6 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
                 : Evaluate(Result.Value, Info, RetExpr)))
         return ESR_Failed;
       return ESR_Returned;
-    }
-
-    case Stmt::IfStmtClass: {
-      const IfStmt *IS = cast<IfStmt>(S);
-
-      // Evaluate the condition, as either a var decl or as an expression.
-      BlockScopeRAII Scope(Info);
-      if (const Stmt *Init = IS->getInit()) {
-        EvalStmtResult ESR = EvaluateStmt(Result, Info, Init);
-        if (ESR != ESR_Succeeded)
-          return ESR;
-      }
-      bool Cond;
-      if (!EvaluateCond(Info, IS->getConditionVariable(), IS->getCond(), Cond))
-        return ESR_Failed;
-
-      if (const Stmt *SubStmt = Cond ? IS->getThen() : IS->getElse()) {
-        EvalStmtResult ESR = EvaluateStmt(Result, Info, SubStmt);
-        if (ESR != ESR_Succeeded)
-          return ESR;
-      }
-      return ESR_Succeeded;
     }
 
     case Stmt::WhileStmtClass: {

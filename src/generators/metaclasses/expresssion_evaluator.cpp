@@ -167,52 +167,78 @@ void ExpressionEvaluator::VisitBinaryOperator(const clang::BinaryOperator* expr)
         Value rhs;
         if (!EvalSubexpr(expr->getLHS(), lhs))
             return;
-        
+
         bool leftBool = value_ops::ConvertToBool(m_interpreter, lhs);
-        std::cout << ">>>>>>>>>>> [ExpressionEvaluator] Logical operator left side: " << leftBool << std::endl;
-        
+
         if (expr->getOpcode() == BO_LAnd)
         {
-            std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #176" << std::endl;
             if (leftBool)
             {
-                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #179" << std::endl;
                 EvalSubexpr(expr->getRHS(), rhs);
                 result = Value(value_ops::ConvertToBool(m_interpreter, rhs));
-                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #182" << std::endl;
             }
             else
             {
-                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #186" << std::endl;
                 result = Value(false);
-            }                
+            }
         }
         else // BO_LOr
         {
-            std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #192" << std::endl;
             if (!leftBool)
             {
-                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #195" << std::endl;
                 EvalSubexpr(expr->getRHS(), rhs);
                 result = Value(value_ops::ConvertToBool(m_interpreter, rhs));
-                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #198" << std::endl;
             }
             else
             {
-                std::cout << ">>>>>>>>>>> [ExpressionEvaluator] #202" << std::endl;
                 result = Value(true);
-            }                
+            }
         }
     }
     else
     {
         assert(false); // TODO: !!!!
     }
-//    if (!EvalSubexpr(expr->GetTemporaryExpr(), val))
-//        return;
-    
 
     vScope.Submit(std::move(result));
+}
+
+void ExpressionEvaluator::VisitUnaryOperator(const clang::UnaryOperator* expr)
+{
+    VisitorScope vScope(this, "VisitUnaryOperator");
+
+    std::cout << "[ExpressionEvaluator] Unary operator found: '" << UnaryOperator::getOpcodeStr(expr->getOpcode()).str() << "'" << std::endl;
+    auto kind = expr->getOpcode();
+
+    Value result;
+    Value val;
+    if (!EvalSubexpr(expr->getSubExpr(), val))
+        return;
+
+    if (kind == UO_LNot)
+    {
+        result = Value(!value_ops::ConvertToBool(m_interpreter, val));
+    }
+    else
+    {
+        assert(false); // TODO: !!!
+    }
+
+    vScope.Submit(std::move(result));
+}
+
+void ExpressionEvaluator::VisitParenExpr(const ParenExpr* expr)
+{
+    VisitorScope vScope(this, "VisitParenExpr");
+
+    Value val;
+
+    if (!EvalSubexpr(expr->getSubExpr(), val))
+        return;
+
+    vScope.Submit(std::move(val));
+    // std::cout << "[ExpressionEvaluator] Unary operator found: '" << UnaryOperator::getOpcodeStr(expr->getOpcode()).str() << "'" << std::endl;
+
 }
 
 bool ExpressionEvaluator::EvalSubexpr(const Expr* expr, Value& val)

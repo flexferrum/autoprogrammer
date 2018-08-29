@@ -27,6 +27,8 @@ public:
     void VisitExprWithCleanups(const clang::ExprWithCleanups* expr);
     void VisitMaterializeTemporaryExpr(const clang::MaterializeTemporaryExpr* expr);
     void VisitBinaryOperator(const clang::BinaryOperator* expr);
+    void VisitUnaryOperator(const clang::UnaryOperator* expr);
+    void VisitParenExpr(const clang::ParenExpr* expr);
 
 private:
     struct VisitorScope
