@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/AndreyBronin/autoprogrammer.svg?branch=master)](https://travis-ci.org/AndreyBronin/autoprogrammer)
+
 # C++ code generation tool
 Welcome to **Autoprogrammer**, the **C++ code generation** tool!
 This tool helps you dramatically reduce the amount of boilerplate code in your C++ projects. Based on clang frontend, the 'autoprogrammer' parses your C++ source files and generates new set C++ sources. For instance, it generates enum-to-string converting functions for you. Instead of you.
@@ -25,4 +27,12 @@ In order to process input files correctly, the whole set of compile options and 
 
 # How to use
 
+```
+sudo docker run --rm -ti autoprogrammer fl-codegen --help
+```
+
 # How to build and install
+
+```
+sudo docker build --tag autoprogrammer .
+```
