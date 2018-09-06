@@ -405,7 +405,7 @@ MethodInfoPtr AstReflector::ReflectMethod(const CXXMethodDecl* decl, NamespacesT
     if (tplInst != nullptr)
         tplInst->dump();
 
-    std::cout << "####@@@@ >> " << decl->getTemplatedKind() << std::endl;
+    dbg() << "####@@@@ >> " << decl->getTemplatedKind() << std::endl;
 
     return methodInfo;
 }

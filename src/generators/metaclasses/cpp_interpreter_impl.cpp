@@ -31,7 +31,7 @@ void InterpreterImpl::ExecuteMethod(const CXXMethodDecl* method)
 
 InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stmt* stmt, const SwitchCase* curSwithCase)
 {
-    std::cout << "<><><><><><><><><> Executing statement: " << stmt->getStmtClassName() << std::endl;
+    dbg() << "<><><><><><><><><> Executing statement: " << stmt->getStmtClassName() << std::endl;
 
     switch (stmt->getStmtClass())
     {
@@ -160,7 +160,7 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
             return ESR_Succeeded;
         }
 
-        std::cout << "<><><><><><><><><> Unknown statement: " << stmt->getStmtClassName() << std::endl;
+        dbg() << "<><><><><><><><><> Unknown statement: " << stmt->getStmtClassName() << std::endl;
         return ESR_Failed;
 #if 0
     case Stmt::DeclStmtClass: {
@@ -308,7 +308,7 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
     QualType exprType = expr->getType();
     if (expr->isGLValue() || exprType->isFunctionType())
     {
-        std::cout << "<><><><><><><><> Evaluate expression as LValue or function" << std::endl;
+        dbg() << "<><><><><><><><> Evaluate expression as LValue or function" << std::endl;
 //        LValue value;
 //        if (!EvaluateLValue(expr, LV, Info))
 //            return false;
@@ -316,13 +316,13 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
     }
     else if (exprType->isIntegralOrEnumerationType())
     {
-        std::cout << "<><><><><><><><> Evaluate expression as kind of integer" << std::endl;
+        dbg() << "<><><><><><><><> Evaluate expression as kind of integer" << std::endl;
 //        if (!IntExprEvaluator(Info, Result).Visit(expr))
 //            return false;
     }
     else if (exprType->hasPointerRepresentation())
     {
-        std::cout << "<><><><><><><><> Evaluate expression as kind of pointer" << std::endl;
+        dbg() << "<><><><><><><><> Evaluate expression as kind of pointer" << std::endl;
 //        LValue LV;
 //        if (!EvaluatePointer(expr, LV, Info))
 //            return false;
@@ -330,7 +330,7 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
     }
     else if (exprType->isRealFloatingType())
     {
-        std::cout << "<><><><><><><><> Evaluate expression as float value" << std::endl;
+        dbg() << "<><><><><><><><> Evaluate expression as float value" << std::endl;
 //        llvm::APFloat F(0.0);
 //        if (!EvaluateFloat(expr, F, Info))
 //            return false;
@@ -338,7 +338,7 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
     }
     else if (exprType->isMemberPointerType())
     {
-        std::cout << "<><><><><><><><> Evaluate expression as pointer to member" << std::endl;
+        dbg() << "<><><><><><><><> Evaluate expression as pointer to member" << std::endl;
 //        MemberPtr P;
 //        if (!EvaluateMemberPointer(expr, P, Info))
 //            return false;
@@ -347,7 +347,7 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
     }
     else if (exprType->isArrayType())
     {
-        std::cout << "<><><><><><><><> Evaluate expression as array" << std::endl;
+        dbg() << "<><><><><><><><> Evaluate expression as array" << std::endl;
 //        LValue LV;
 //        LV.set(expr, Info.CurrentCall->Index);
 //        APValue &Value = Info.CurrentCall->createTemporary(expr, false);
@@ -357,7 +357,7 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
     }
     else if (exprType->isRecordType())
     {
-        std::cout << "<><><><><><><><> Evaluate expression as record type" << std::endl;
+        dbg() << "<><><><><><><><> Evaluate expression as record type" << std::endl;
 //        LValue LV;
 //        LV.set(expr, Info.CurrentCall->Index);
 //        APValue &Value = Info.CurrentCall->createTemporary(expr, false);
@@ -367,7 +367,7 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
     }
     else if (exprType->isVoidType())
     {
-        std::cout << "<><><><><><><><> Evaluate expression as void type" << std::endl;
+        dbg() << "<><><><><><><><> Evaluate expression as void type" << std::endl;
 //        if (!Info.getLangOpts().CPlusPlus11)
 //            Info.CCEDiag(expr, diag::note_constexpr_nonliteral)
 //                    << expr->getType();
@@ -376,7 +376,7 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
     }
     else
     {
-        std::cout << "<><><><><><><><> Unsupported expression type: " << exprType->getTypeClassName() << std::endl;
+        dbg() << "<><><><><><><><> Unsupported expression type: " << exprType->getTypeClassName() << std::endl;
 //        Info.FFDiag(expr, diag::note_invalid_subexpr_in_const_expr);
         return false;
     }
@@ -426,7 +426,7 @@ ScopeStack::DeclInfo* InterpreterImpl::CreateLocalVar(const VarDecl* decl)
     m_scopes.stack.push_back(std::move(init));
     auto& result = m_scopes.stack.back();
     m_visibleDecls[init.decl] = Value::InternalRef(&result.val);
-    std::cout << "Local variable created: " << decl->getNameAsString() << std::endl;
+    dbg() << "Local variable created: " << decl->getNameAsString() << std::endl;
 
     return &result;
 }
@@ -453,7 +453,7 @@ nonstd::expected<Value, std::string> InterpreterImpl::GetDeclReference(const cla
     auto p = m_visibleDecls.find(decl);
     if (p != m_visibleDecls.end())
     {
-        std::cout << "Variable resolved: '" + decl->getNameAsString() + "'" << std::endl;
+        dbg() << "Variable resolved: '" + decl->getNameAsString() + "'" << std::endl;
         return Value(p->second);
     }
 
@@ -482,7 +482,7 @@ bool InterpreterImpl::DetectSpecialDecl(const clang::NamedDecl* decl, Value& val
     else if(varName.length() >= 1 && varName[0] == '$')
     {
         std::string tmpName = "MetaClass_" + varName.substr(1);
-        std::cout << "Possible reference to metaclass found: " << tmpName << std::endl;
+        dbg() << "Possible reference to metaclass found: " << tmpName << std::endl;
         const DeclContext* ctx = decl->getDeclContext();
         if (ctx->isRecord())
         {
@@ -502,13 +502,14 @@ bool InterpreterImpl::DetectSpecialDecl(const clang::NamedDecl* decl, Value& val
     else
         return false;
 
-    std::cout << "Found reference to variable declaration. Variable name: " << varDecl->getNameAsString() << "', variable type: '" << ti->getFullQualifiedName() << "'" << std::endl;
+    dbg() << "Found reference to variable declaration. Variable name: " << varDecl->getNameAsString() << "', variable type: '" << ti->getFullQualifiedName() << "'" << std::endl;
     return true;
 }
 
-bool InterpreterImpl::Report(Diag type, const clang::SourceLocation& loc, std::string message)
+bool InterpreterImpl::Report(MessageType type, const clang::SourceLocation& loc, std::string message)
 {
-    return !(type == Diag::Error);
+    
+    return !(type == MessageType::Error);
 }
 
 PrintingPolicy InterpreterImpl::GetDefaultPrintingPolicy()
@@ -519,8 +520,9 @@ PrintingPolicy InterpreterImpl::GetDefaultPrintingPolicy()
 }
 } // interpreter
 
-CppInterpreter::CppInterpreter(const clang::ASTContext* astContext)
+CppInterpreter::CppInterpreter(const clang::ASTContext* astContext, IDiagnosticReporter* diagReporter)
     : m_astContext(astContext)
+    , m_diagReporter(diagReporter)
 {
 
 }
@@ -531,7 +533,7 @@ CppInterpreter::~CppInterpreter()
 
 void CppInterpreter::Execute(reflection::ClassInfoPtr metaclass, reflection::ClassInfoPtr inst, reflection::MethodInfoPtr generator)
 {
-    interpreter::InterpreterImpl i(m_astContext, metaclass, inst);
+    interpreter::InterpreterImpl i(m_astContext, m_diagReporter, metaclass, inst);
     i.ExecuteMethod(generator->decl);
 }
 

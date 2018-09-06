@@ -143,7 +143,7 @@ void Jinja2ReflectorGenerator::HandleMatch(const clang::ast_matchers::MatchFinde
         if (!IsFromInputFiles(decl->getLocStart(), matchResult.Context))
             return;
 
-        reflection::AstReflector reflector(matchResult.Context);
+        reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);
 
         auto structInfo = reflector.ReflectClass(decl, &m_namespaces);
         PrepareStructInfo(structInfo, matchResult.Context);
@@ -167,7 +167,7 @@ void Jinja2ReflectorGenerator::PrepareStructInfo(reflection::ClassInfoPtr info, 
 
     classesStack.push(info);
 
-    reflection::AstReflector reflector(context);
+    reflection::AstReflector reflector(context, m_options.consoleWriter);
 
     while (!classesStack.empty())
     {

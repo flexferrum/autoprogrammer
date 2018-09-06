@@ -29,7 +29,7 @@ void ExpressionEvaluator::VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr*
     const clang::CXXMethodDecl* method = expr->getMethodDecl();
 
     std::string recName = rec->getQualifiedNameAsString();
-    std::cout << "[ExpressionEvaluator] Call method '" << method->getNameAsString() << "' from '" << recName << "'" << std::endl;
+    dbg() << "[ExpressionEvaluator] Call method '" << method->getNameAsString() << "' from '" << recName << "'" << std::endl;
 
     Value object;
     std::vector<Value> args;
@@ -53,7 +53,7 @@ void ExpressionEvaluator::VisitCXXConstructExpr(const clang::CXXConstructExpr* e
         if (!CalculateCallArgs(expr->getArgs(), expr->getNumArgs(), args))
             return;
 
-        std::cout << "[ExpressionEvaluator] Constructor call. Arg0 type: " << args[0].GetValue().which() << std::endl;
+        dbg() << "[ExpressionEvaluator] Constructor call. Arg0 type: " << args[0].GetValue().which() << std::endl;
         if (ctorDecl->isCopyConstructor())
         {
             result = args[0];
@@ -66,7 +66,7 @@ void ExpressionEvaluator::VisitCXXConstructExpr(const clang::CXXConstructExpr* e
     }
     else
     {
-        std::cout << "!!!!! Unsupported (yet!) type of ctor!" << std::endl;
+        dbg() << "!!!!! Unsupported (yet!) type of ctor!" << std::endl;
         m_evalResult = false;
         return;
     }
@@ -76,7 +76,7 @@ void ExpressionEvaluator::VisitCXXConstructExpr(const clang::CXXConstructExpr* e
 void ExpressionEvaluator::VisitCXXOperatorCallExpr(const clang::CXXOperatorCallExpr* expr)
 {
     VisitorScope vScope(this, "VisitCXXOperatorCallExpr");
-    std::cout << "[ExpressionEvaluator] Overloaded operator call found. Num args: " << expr->getNumArgs() << ", DeclKind: '" << expr->getCalleeDecl()->getDeclKindName() << "'" << std::endl;
+    dbg() << "[ExpressionEvaluator] Overloaded operator call found. Num args: " << expr->getNumArgs() << ", DeclKind: '" << expr->getCalleeDecl()->getDeclKindName() << "'" << std::endl;
 
     const clang::Decl* calleeDecl = expr->getCalleeDecl();
     const clang::CXXMethodDecl* operAsMethod = llvm::dyn_cast_or_null<CXXMethodDecl>(calleeDecl);
@@ -98,7 +98,7 @@ void ExpressionEvaluator::VisitCXXOperatorCallExpr(const clang::CXXOperatorCallE
 void ExpressionEvaluator::VisitDeclRefExpr(const clang::DeclRefExpr* expr)
 {
     VisitorScope vScope(this, "VisitDeclRefExpr");
-    std::cout << "[ExpressionEvaluator] Declaration reference found: '" << expr->getNameInfo().getAsString() << "'" << std::endl;
+    dbg() << "[ExpressionEvaluator] Declaration reference found: '" << expr->getNameInfo().getAsString() << "'" << std::endl;
 
     auto res = m_interpreter->GetDeclReference(expr->getFoundDecl());
     if (!res)
@@ -125,7 +125,7 @@ void ExpressionEvaluator::VisitStringLiteral(const clang::StringLiteral* expr)
     VisitorScope vScope(this, "VisitStringLiteral");
     Value val(expr->getString().str());
 
-    std::cout << "String literal found: '" << expr->getString().str() << "'" << std::endl;
+    dbg() << "String literal found: '" << expr->getString().str() << "'" << std::endl;
 
     vScope.Submit(std::move(val));
 }
@@ -157,7 +157,7 @@ void ExpressionEvaluator::VisitBinaryOperator(const clang::BinaryOperator* expr)
 {
     VisitorScope vScope(this, "VisitBinaryOperator");
 
-    std::cout << "[ExpressionEvaluator] Binary operator found: '" << expr->getOpcodeStr().str() << "'" << std::endl;
+    dbg() << "[ExpressionEvaluator] Binary operator found: '" << expr->getOpcodeStr().str() << "'" << std::endl;
 
     Value result;
 
@@ -207,7 +207,7 @@ void ExpressionEvaluator::VisitUnaryOperator(const clang::UnaryOperator* expr)
 {
     VisitorScope vScope(this, "VisitUnaryOperator");
 
-    std::cout << "[ExpressionEvaluator] Unary operator found: '" << UnaryOperator::getOpcodeStr(expr->getOpcode()).str() << "'" << std::endl;
+    dbg() << "[ExpressionEvaluator] Unary operator found: '" << UnaryOperator::getOpcodeStr(expr->getOpcode()).str() << "'" << std::endl;
     auto kind = expr->getOpcode();
 
     Value result;
@@ -237,7 +237,7 @@ void ExpressionEvaluator::VisitParenExpr(const ParenExpr* expr)
         return;
 
     vScope.Submit(std::move(val));
-    // std::cout << "[ExpressionEvaluator] Unary operator found: '" << UnaryOperator::getOpcodeStr(expr->getOpcode()).str() << "'" << std::endl;
+    // dbg() << "[ExpressionEvaluator] Unary operator found: '" << UnaryOperator::getOpcodeStr(expr->getOpcode()).str() << "'" << std::endl;
 
 }
 
@@ -255,12 +255,12 @@ bool ExpressionEvaluator::CalculateCallArgs(const Expr* const* args, unsigned nu
     for (unsigned argNum = 0; argNum < numArgs; ++ argNum)
     {
         auto& arg = args[argNum];
-        std::cout << "[ExpressionEvaluator] Enter evaluation of arg #" << argNum << "'" << std::endl;
+        dbg() << "[ExpressionEvaluator] Enter evaluation of arg #" << argNum << "'" << std::endl;
         Value val;
         if (!EvalSubexpr(arg, val))
             return false;
         argValues.push_back(std::move(val));
-        std::cout << "[ExpressionEvaluator] Exit evaluation of arg #" << argNum << "'" << std::endl;
+        dbg() << "[ExpressionEvaluator] Exit evaluation of arg #" << argNum << "'" << std::endl;
     }
 
     return true;
@@ -268,7 +268,7 @@ bool ExpressionEvaluator::CalculateCallArgs(const Expr* const* args, unsigned nu
 
 void ExpressionEvaluator::ReportError(const SourceLocation& loc, const std::string& errMsg)
 {
-    m_interpreter->Report(Diag::Error, loc, errMsg);
+    m_interpreter->Report(MessageType::Error, loc, errMsg);
     m_evalResult = false;
 }
 

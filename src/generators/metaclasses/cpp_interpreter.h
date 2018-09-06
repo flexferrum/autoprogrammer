@@ -9,13 +9,14 @@ namespace codegen
 class CppInterpreter
 {
 public:
-    explicit CppInterpreter(const clang::ASTContext* astContext);
+    CppInterpreter(const clang::ASTContext* astContext, IDiagnosticReporter* diagReporter);
     ~CppInterpreter();
 
     void Execute(reflection::ClassInfoPtr metaclass, reflection::ClassInfoPtr inst, reflection::MethodInfoPtr generator);
 
 private:
     const clang::ASTContext* m_astContext = nullptr;
+    IDiagnosticReporter* m_diagReporter;
 };
 } // codegen
 

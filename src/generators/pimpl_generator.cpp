@@ -37,11 +37,11 @@ void PimplGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::MatchRe
         if (!IsFromInputFiles(decl->getLocStart(), matchResult.Context))
             return;
 
-        reflection::AstReflector reflector(matchResult.Context);
+        reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);
 
         auto ci = reflector.ReflectClass(decl, &m_namespaces);
 
-        std::cout << "### Pimpl declaration found: " << ci->GetFullQualifiedName() << std::endl;
+        dbg() << "### Pimpl declaration found: " << ci->GetFullQualifiedName() << std::endl;
     }
 }
 

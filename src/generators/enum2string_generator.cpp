@@ -113,7 +113,7 @@ void Enum2StringGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::M
         if (!IsFromInputFiles(decl->getLocStart(), matchResult.Context))
             return;
 
-        reflection::AstReflector reflector(matchResult.Context);
+        reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);
 
         reflector.ReflectEnum(decl, &m_namespaces);
     }

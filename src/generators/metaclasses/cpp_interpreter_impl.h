@@ -78,8 +78,9 @@ private:
 class InterpreterImpl
 {
 public:
-    InterpreterImpl(const clang::ASTContext* astContext, reflection::ClassInfoPtr metaclass, reflection::ClassInfoPtr inst)
+    InterpreterImpl(const clang::ASTContext* astContext, IDiagnosticReporter* diagReporter, reflection::ClassInfoPtr metaclass, reflection::ClassInfoPtr inst)
         : m_astContext(astContext)
+        , m_diagReporter(diagReporter)
         , m_metaclass(metaclass)
         , m_instance(inst)
     {
@@ -87,9 +88,9 @@ public:
     }
 
     void ExecuteMethod(const clang::CXXMethodDecl* method);
-    bool Report(Diag type, const clang::SourceLocation& loc, std::string message);
+    bool Report(MessageType type, const clang::SourceLocation& loc, std::string message);
+    auto& dbg() {return m_diagReporter->GetDebugStream();}
     clang::PrintingPolicy GetDefaultPrintingPolicy();
-
 
 private:
     enum ExecStatementResult
@@ -123,16 +124,15 @@ private:
     nonstd::expected<Value, std::string> GetDeclReference(const clang::NamedDecl* decl);
     bool DetectSpecialDecl(const clang::NamedDecl* decl, Value& val);
 
-
 private:
     using BlockScopeRAII = RAIIScope<false>;
     using ExprScopeRAII = RAIIScope<true>;
 
     const clang::ASTContext* m_astContext;
+    IDiagnosticReporter* m_diagReporter;
     reflection::ClassInfoPtr m_metaclass;
     reflection::ClassInfoPtr m_instance;
     ScopeStack m_scopes;
-    IDiagnosticReporter* m_diagReporter;
     std::unordered_map<const clang::NamedDecl*, Value::InternalRef> m_visibleDecls;
     std::unordered_map<std::string, Value> m_globalVars;
 

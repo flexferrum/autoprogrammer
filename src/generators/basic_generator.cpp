@@ -1,4 +1,5 @@
 #include "basic_generator.h"
+#include "decls_reflection.h"
 
 #include <clang/AST/ASTContext.h>
 #include <clang/Basic/SourceManager.h>
@@ -226,5 +227,22 @@ void BasicGenerator::SetupCommonTemplateParams(jinja2::ValuesMap& params)
 {
     params["extraHeaders"] = jinja2::Reflect(m_options.extraHeaders);
 }
+
+void BasicGenerator::Report(MessageType type, const std::string fileName, unsigned line, unsigned col, std::string message)
+{
+    m_options.consoleWriter->WriteMessage(type, fileName, line, col, message);
+}
+
+void BasicGenerator::Report(MessageType type, const reflection::SourceLocation& loc, std::string message)
+{
+    Report(type, loc.fileName, loc.line, loc.column, std::move(message));
+}
+
+void BasicGenerator::Report(MessageType type, const clang::SourceLocation& loc, const clang::ASTContext* astContext, std::string message)
+{
+    // TODO:
+}
+
+
 
 } // codegen

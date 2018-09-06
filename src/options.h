@@ -7,6 +7,8 @@
 
 namespace codegen
 {
+class ConsoleWriter;
+
 enum class Standard
 {
     Auto,
@@ -60,6 +62,7 @@ struct Options
     bool debugMode = false;
     Standard targetStandard = Standard::Auto;
     TestGenOptions testGenOptions;
+    ConsoleWriter* consoleWriter = nullptr;    
 };
 
 } // codegen

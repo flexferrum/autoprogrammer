@@ -31,6 +31,8 @@ public:
     void VisitParenExpr(const clang::ParenExpr* expr);
 
 private:
+    auto& dbg() {return m_interpreter->dbg();}
+    
     struct VisitorScope
     {
         ExpressionEvaluator* evaluator;
@@ -42,7 +44,7 @@ private:
             : evaluator(eval)
             , scopeName(name)
         {
-            std::cout << "[ExpressionEvaluator] Enter " << name << std::endl;
+            eval->dbg() << "[ExpressionEvaluator] Enter " << name << std::endl;
             isFirst = eval->m_isFirst;
             eval->m_isFirst = false;
 
@@ -51,13 +53,13 @@ private:
         }
         ~VisitorScope()
         {
-            std::cout << "[ExpressionEvaluator] Exit " << scopeName << ". IsSucceeded: " << evaluator->m_evalResult << std::endl;
+            evaluator->dbg() << "[ExpressionEvaluator] Exit " << scopeName << ". IsSucceeded: " << evaluator->m_evalResult << std::endl;
         }
         void Submit(Value val)
         {
             if (evaluator->m_currentValue && evaluator->m_evalResult)
             {
-                std::cout << "[ExpressionEvaluator] Value successfully submitted. ValType: " << val.GetValue().which() << std::endl;
+                evaluator->dbg() << "[ExpressionEvaluator] Value successfully submitted. ValType: " << val.GetValue().which() << std::endl;
                 *evaluator->m_currentValue = std::move(val);
             }
         }

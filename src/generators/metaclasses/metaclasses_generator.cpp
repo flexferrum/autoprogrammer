@@ -71,11 +71,11 @@ void MetaclassesGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::M
     {
         if (IsFromInputFiles(decl->getLocStart(), matchResult.Context))
         {
-            reflection::AstReflector reflector(matchResult.Context);
+            reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);
 
             auto ci = reflector.ReflectClass(decl, &m_namespaces);
 
-            std::cout << "### Declaration of metaclass found: " << ci->GetFullQualifiedName() << std::endl;
+            dbg() << "### Declaration of metaclass found: " << ci->GetFullQualifiedName() << std::endl;
             ProcessMetaclassDecl(ci, matchResult.Context);
         }
     }
@@ -83,11 +83,11 @@ void MetaclassesGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::M
     {
         if (IsFromInputFiles(decl->getLocStart(), matchResult.Context))
         {
-            reflection::AstReflector reflector(matchResult.Context);
+            reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);
 
             auto ci = reflector.ReflectClass(decl, &m_namespaces);
 
-            std::cout << "### Implementation of metaclass found: " << ci->GetFullQualifiedName() << std::endl;
+            dbg() << "### Implementation of metaclass found: " << ci->GetFullQualifiedName() << std::endl;
             ProcessMetaclassImplDecl(ci, matchResult.Context);
         }
     }
@@ -104,7 +104,7 @@ void MetaclassesGenerator::ProcessMetaclassDecl(reflection::ClassInfoPtr classIn
     reflection::NamedDeclInfo tmpInfo = *classInfo;
     tmpInfo.name = metaclassName;
     std::string fullMetaclassName =  tmpInfo.GetFullQualifiedName();
-    std::cout << "####### Metaclass found: " << fullMetaclassName << std::endl;
+    dbg() << "####### Metaclass found: " << fullMetaclassName << std::endl;
 
     MetaclassInfo& metaclassInfo = m_metaclasses[fullMetaclassName];
 
@@ -132,12 +132,12 @@ void MetaclassesGenerator::ProcessMetaclassDecl(reflection::ClassInfoPtr classIn
         else if (mi->name == "GenerateDef")
             metaclassInfo.defGenMethod = mi;
 
-        std::cout << "@@@@@@@@ Metaclass declaration method: " << mi->name << std::endl;
+        dbg() << "@@@@@@@@ Metaclass declaration method: " << mi->name << std::endl;
 //        if (mi->decl && !mi->isImplicit)
 //            mi->decl->dump();
 //        if (mi->name == "GenerateDecl")
 //        {
-//            std::cout << ">>>> Generate declaration method found. Method AST:";
+//            dbg() << ">>>> Generate declaration method found. Method AST:";
 //            mi->decl->dump();
 //        }
     }
@@ -145,7 +145,7 @@ void MetaclassesGenerator::ProcessMetaclassDecl(reflection::ClassInfoPtr classIn
 
 void MetaclassesGenerator::ProcessMetaclassImplDecl(reflection::ClassInfoPtr classInfo, const clang::ASTContext* astContext)
 {
-    reflection::AstReflector reflector(astContext);
+    reflection::AstReflector reflector(astContext, m_options.consoleWriter);
 
     const std::string metaclassNamePrefix = "MetaClassInstance_";
     if (classInfo->name.find(metaclassNamePrefix) != 0)
@@ -177,7 +177,7 @@ void MetaclassesGenerator::ProcessMetaclassImplDecl(reflection::ClassInfoPtr cla
             reflection::ClassInfoPtr ci = reflector.ReflectClass(recordDecl, nullptr);
             std::string fullName = ci->GetFullQualifiedName();
             fullName.erase(fullName.end() - 5, fullName.end());
-            std::cout << "######## Instance of metaclass " << fullName << std::endl;
+            dbg() << "######## Instance of metaclass " << fullName << std::endl;
             auto p = m_metaclasses.find(fullName);
             if (p == m_metaclasses.end())
                 return;
@@ -188,7 +188,7 @@ void MetaclassesGenerator::ProcessMetaclassImplDecl(reflection::ClassInfoPtr cla
     if (!instInfo)
         return;
 
-    std::cout << "####### Metaclass '" << metaclassInfo.metaclass->GetFullQualifiedName() << "' instance found: " << metaclassName << std::endl;
+    dbg() << "####### Metaclass '" << metaclassInfo.metaclass->GetFullQualifiedName() << "' instance found: " << metaclassName << std::endl;
 
     const DeclContext* nsContext = classInfo->decl->getEnclosingNamespaceContext();
     auto ns = m_implNamespaces.GetNamespace(nsContext);
@@ -213,12 +213,12 @@ void MetaclassesGenerator::ProcessMetaclassImplDecl(reflection::ClassInfoPtr cla
 
     for (reflection::MethodInfoPtr mi : instInfo->methods)
     {
-        std::cout << "@@@@@@@@ Metaclass instance method: " << mi->fullPrototype << std::endl;
+        dbg() << "@@@@@@@@ Metaclass instance method: " << mi->fullPrototype << std::endl;
 //        if (mi->decl && !mi->isImplicit)
 //            mi->decl->dump();
 //        if (mi->name == "GenerateDecl")
 //        {
-//            std::cout << ">>>> Generate declaration method found. Method AST:";
+//            dbg() << ">>>> Generate declaration method found. Method AST:";
 //            mi->decl->dump();
 //        }
     }
@@ -226,11 +226,11 @@ void MetaclassesGenerator::ProcessMetaclassImplDecl(reflection::ClassInfoPtr cla
 
 bool MetaclassesGenerator::Validate()
 {
-    CppInterpreter interpreter(m_astContext);
+    CppInterpreter interpreter(m_astContext, this);
 
     for (auto& instInfo : m_implsInfo)
     {
-        std::cout << ">>>>>> Processing metaclass instance '" << instInfo.impl->name << "' of '" << instInfo.metaclass->name << "'" << std::endl;
+        dbg() << ">>>>>> Processing metaclass instance '" << instInfo.impl->name << "' of '" << instInfo.metaclass->name << "'" << std::endl;
         interpreter.Execute(instInfo.metaclass, instInfo.impl, instInfo.declGenMethod);
     }
     return true;

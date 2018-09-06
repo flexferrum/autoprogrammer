@@ -36,7 +36,7 @@ METACLASS_INST(Interface, TestIface)
     std::string TestMethod2(int param) const;
 };
 
-#if 1
+#if 0
 METACLASS_INST(Interface, BadTestIface)
 {
 public:
