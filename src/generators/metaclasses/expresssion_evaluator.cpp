@@ -5,6 +5,7 @@
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Expr.h>
 #include <clang/AST/ExprCXX.h>
+#include <clang/AST/Attr.h>
 
 #include <iostream>
 
@@ -27,6 +28,8 @@ void ExpressionEvaluator::VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr*
     VisitorScope vScope(this, "VisitCXXMemberCallExpr");
     const clang::CXXRecordDecl* rec = expr->getRecordDecl();
     const clang::CXXMethodDecl* method = expr->getMethodDecl();
+
+
 
     std::string recName = rec->getQualifiedNameAsString();
     dbg() << "[ExpressionEvaluator] Call method '" << method->getNameAsString() << "' from '" << recName << "'" << std::endl;

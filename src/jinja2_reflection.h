@@ -834,6 +834,28 @@ struct TypeReflection<reflection::MemberInfo>
     }
 };
 template <>
+struct TypeReflection<reflection::GenericDeclPart>
+        : TypeReflected<reflection::GenericDeclPart> {
+    static auto &GetAccessors() {
+        static std::unordered_map<std::string, FieldAccessor> accessors = {
+            {"accessType",
+             [](const reflection::GenericDeclPart &obj) {
+                 return Reflect(obj.accessType);
+             }},
+            {"content",
+             [](const reflection::GenericDeclPart &obj) {
+                 return Reflect(obj.content);
+             }},
+            {"location",
+             [](const reflection::GenericDeclPart &obj) {
+                 return Reflect(obj.location);
+             }}
+        };
+
+        return accessors;
+    }
+};
+template <>
 struct TypeReflection<reflection::ClassInfo>
         : TypeReflected<reflection::ClassInfo> {
     static auto &GetAccessors() {
@@ -870,6 +892,8 @@ struct TypeReflection<reflection::ClassInfo>
              }},
             {"members",
              [](const reflection::ClassInfo &obj) { return Reflect(obj.members); }},
+            {"genericParts",
+             [](const reflection::ClassInfo &obj) { return Reflect(obj.genericParts); }},
             {"methods",
              [](const reflection::ClassInfo &obj) { return Reflect(obj.methods); }},
             {"name",

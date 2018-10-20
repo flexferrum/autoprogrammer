@@ -113,11 +113,13 @@ private:
     // Executors
     ExecStatementResult ExecuteStatement(const clang::Stmt* stmt, const clang::SwitchCase* curSwithCase);
     ExecStatementResult EvaluateLoopBody(const clang::Stmt* body, const clang::SwitchCase *curSwitchCase = nullptr);
+    ExecStatementResult ExecuteAttributedStatement(const clang::AttributedStmt* stmt, const clang::SwitchCase* curSwithCase);
 
     bool ExecuteExpression(const clang::Expr* expr, Value& result);
     bool ExecuteAsBooleanCondition(const clang::Expr* expr, bool& result);
     bool ExecuteVarDecl(const clang::VarDecl *decl);
-    bool ExecuteDecl(const clang::Decl *D);
+    bool ExecuteDecl(const clang::Decl *decl);
+    void InjectStatement(const clang::Stmt* stmt, const std::string& visibility);
 
     ScopeStack::DeclInfo* CreateLocalVar(const clang::VarDecl *decl);
 

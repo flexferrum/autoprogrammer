@@ -168,6 +168,7 @@ struct MetaClassInstance_##InstClassName : public meta::detail::MetaClassImplBas
 \
 class MetaClassInstance_##InstClassName::InstClassName
 
-#define META_INJECT [&]()
+#define META_CONSTEXPR [[gsl::suppress("constexpr")]]
+#define META_INJECT(vis) [[gsl::suppress("inject", #vis)]]
 
 #endif // INCLUDE_META_METACLASS_H

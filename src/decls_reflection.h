@@ -100,6 +100,12 @@ enum class ConstructorType
     Convert
 };
 
+struct GenericDeclPart : public LocationInfo
+{
+    std::string content;
+    AccessType accessType = AccessType::Undefined;
+};
+
 struct MethodInfo : public NamedDeclInfo
 {
     SourceLocation declLocation;
@@ -201,6 +207,7 @@ struct ClassInfo : public NamedDeclInfo, public LocationInfo
     std::vector<MemberInfoPtr> members;
     std::vector<MethodInfoPtr> methods;
     std::vector<InnerDeclInfo> innerDecls;
+    std::vector<GenericDeclPart> genericParts;
 
     bool isTrivial = false;
     bool isAbstract = false;

@@ -1,9 +1,10 @@
 #include "console_writer.h"
 #include <iostream>
+#include <string>
 
 namespace codegen
 {
-    
+
 void WriteMessageType(std::ostream& os, MessageType type)
 {
     switch (type)
@@ -21,7 +22,7 @@ void WriteMessageType(std::ostream& os, MessageType type)
         break;
     }
 }
-    
+
 void ConsoleWriter::WriteMessage(MessageType type, const std::string& fileName, unsigned line, unsigned col, const std::string& msg)
 {
     ConsoleStream(type, fileName, line, col) << msg << std::endl;
@@ -42,9 +43,9 @@ std::ostream& ConsoleWriter::ConsoleStream(MessageType type)
 std::ostream& ConsoleWriter::ConsoleStream(MessageType type, const std::string& fileName, unsigned line, unsigned col)
 {
     auto& os = ConsoleStream();
-    
+
     os << fileName << ":" << line << ":" << col << ":";
     return ConsoleStream(type);
 }
-    
+
 }

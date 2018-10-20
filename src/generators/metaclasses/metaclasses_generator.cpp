@@ -30,7 +30,10 @@ R"(
 {% block namespace_content %}
 {% for class in ns.classes | sort(attribute="name") %}
 
-{% macro MethodsDecl(class, access) %}
+{% macro Decls(class, access) %}
+{% for part in class.genericParts | selectattr('accessType', 'in', access) %}
+    {{ part.content }};
+{% endfor %}
 {% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'in', access) %}
     {{'explicit ' if method.isExplicitCtor}}{{'virtual ' if method.isVirtual}}{{'constexpr ' if method.isConstexpr}}{{'static ' if method.isStatic}}{{ method.returnType.printedName }} {{method.name}}({{method.params | map(attribute='fullDecl') | join(', ')}}){{'const ' if method.isConst}}{{'noexcept ' if method.isNoExcept}}{{'= 0' if method.isPure}}{{'= delete' if method.isDeleted}}{{'= default' if method.isDefault}};
 {% endfor %}
@@ -39,11 +42,11 @@ R"(
 class {{ class.name }}
 {
 public:
-    {{ MethodsDecl(class, ['Public']) }}
+    {{ Decls(class, ['Public']) }}
 protected:
-    {{ MethodsDecl(class, ['Protected']) }}
+    {{ Decls(class, ['Protected']) }}
 private:
-    {{ MethodsDecl(class, ['Private', 'Undefined']) }}
+    {{ Decls(class, ['Private', 'Undefined']) }}
 };
 
 {% endfor %}

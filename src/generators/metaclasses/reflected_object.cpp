@@ -1,5 +1,6 @@
 #include "reflected_object.h"
 #include "value.h"
+#include "cpp_interpreter_impl.h"
 
 #include <iostream>
 
@@ -93,7 +94,7 @@ ReflectedObject::ReflectedObject(DataType val)
 
 bool ReflectedMethods::Compiler_message(InterpreterImpl* interpreter, const Compiler& obj, Value& result, const std::string& msg)
 {
-    interpreter->Report(MessageType::Notice, )
+    interpreter->Report(MessageType::Notice, clang::SourceLocation(), msg);
     result = VoidValue();
     return true;
 }
@@ -162,6 +163,13 @@ bool ReflectedMethods::ClassMemberBase_has_access(InterpreterImpl* interpreter, 
     result = Value(obj->accessType != reflection::AccessType::Undefined);
 
     std::cout << "#### ReflectedMethods::ClassMemberBase_has_access called. Object: " << obj << std::endl;
+    return true;
+}
+
+bool ReflectedMethods::ClassMemberBase_make_public(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result)
+{
+    obj->accessType = reflection::AccessType::Public;
+    result = Value(VoidValue());
     return true;
 }
 

@@ -181,6 +181,7 @@ bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethod
         {"meta::Range<meta::MethodInfo>::iterator::operator++/meta::Range<meta::MethodInfo>::iterator &operator++()"s, thunkMaker(&ReflectedMethods::IteratorT_OperPrefixInc)},
         {"meta::ClassMemberBase::is_public/bool is_public() const"s, thunkMaker(&ReflectedMethods::MethodInfo_is_public)},
         {"meta::ClassMemberBase::has_access/bool has_access() const"s, thunkMaker(&ReflectedMethods::ClassMemberBase_has_access)},
+        {"meta::ClassMemberBase::make_public/void make_public()"s, thunkMaker(&ReflectedMethods::ClassMemberBase_make_public)},
         {"meta::MethodInfo::is_implicit/bool is_implicit() const"s, thunkMaker(&ReflectedMethods::MethodInfo_is_implicit)},
         {"meta::MethodInfo::is_copy_ctor/bool is_copy_ctor() const"s, thunkMaker(&ReflectedMethods::MethodInfo_is_copy_ctor)},
         {"meta::MethodInfo::is_move_ctor/bool is_move_ctor() const"s, thunkMaker(&ReflectedMethods::MethodInfo_is_move_ctor)},

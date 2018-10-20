@@ -10,6 +10,7 @@
 #include "reflected_object.h"
 
 #include <clang/AST/Decl.h>
+#include <clang/AST/Attr.h>
 
 using namespace clang;
 using namespace reflection;
@@ -18,6 +19,52 @@ namespace codegen
 {
 namespace interpreter
 {
+
+struct Attributes
+{
+    bool doInject = false;
+    bool isConstexpr = false;
+    std::string visibility = "default";
+};
+
+Attributes GetStatementAttrs(const clang::AttributedStmt* stmt)
+{
+    Attributes result;
+
+    for (const clang::Attr* attr : stmt->getAttrs())
+    {
+        const clang::SuppressAttr* suppAttr = cast<clang::SuppressAttr>(attr);
+        if (!suppAttr)
+            continue;
+
+        for (const clang::StringRef& id : suppAttr->diagnosticIdentifiers())
+        {
+            std::string idStr = id.str();
+            if (idStr == "inject")
+            {
+                result.doInject = true;
+            }
+            else if (idStr == "constexpr")
+            {
+                result.isConstexpr = true;
+            }
+            else if (idStr == "public")
+            {
+                result.visibility = "public";
+            }
+            else if (idStr == "protected")
+            {
+                result.visibility = "protected";
+            }
+            else if (idStr == "private")
+            {
+                result.visibility = "private";
+            }
+        }
+    }
+
+    return result;
+}
 
 void InterpreterImpl::ExecuteMethod(const CXXMethodDecl* method)
 {
@@ -32,6 +79,8 @@ void InterpreterImpl::ExecuteMethod(const CXXMethodDecl* method)
 InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stmt* stmt, const SwitchCase* curSwithCase)
 {
     dbg() << "<><><><><><><><><> Executing statement: " << stmt->getStmtClassName() << std::endl;
+
+    // stmt->
 
     switch (stmt->getStmtClass())
     {
@@ -122,33 +171,36 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
 
     case Stmt::IfStmtClass:
     {
-      const IfStmt *ifStmt = cast<IfStmt>(stmt);
+        const IfStmt *ifStmt = cast<IfStmt>(stmt);
 
-      // Evaluate the condition, as either a var decl or as an expression.
-      BlockScopeRAII scope(m_scopes);
-      if (const Stmt *initStmt = ifStmt->getInit())
-      {
-        auto result = ExecuteStatement(initStmt, nullptr);
+        // Evaluate the condition, as either a var decl or as an expression.
+        BlockScopeRAII scope(m_scopes);
+        if (const Stmt *initStmt = ifStmt->getInit())
+        {
+            auto result = ExecuteStatement(initStmt, nullptr);
 
-        if (result != ESR_Succeeded)
-          return result;
-      }
-      bool cond = false;
-      auto condVarStmt = ifStmt->getConditionVariable();
-      if (condVarStmt && !ExecuteVarDecl(condVarStmt))
-          return ESR_Failed;
+            if (result != ESR_Succeeded)
+                return result;
+        }
+        bool cond = false;
+        auto condVarStmt = ifStmt->getConditionVariable();
+        if (condVarStmt && !ExecuteVarDecl(condVarStmt))
+            return ESR_Failed;
 
-      if (!ExecuteAsBooleanCondition(ifStmt->getCond(), cond))
-        return ESR_Failed;
+        if (!ExecuteAsBooleanCondition(ifStmt->getCond(), cond))
+            return ESR_Failed;
 
-      if (const Stmt *subStmt = cond ? ifStmt->getThen() : ifStmt->getElse())
-      {
-        auto result = ExecuteStatement(subStmt, nullptr);
-        if (result != ESR_Succeeded)
-          return result;
-      }
-      return ESR_Succeeded;
+        if (const Stmt *subStmt = cond ? ifStmt->getThen() : ifStmt->getElse())
+        {
+            auto result = ExecuteStatement(subStmt, nullptr);
+            if (result != ESR_Succeeded)
+                return result;
+        }
+        return ESR_Succeeded;
     }
+
+    case Stmt::AttributedStmtClass:
+        return ExecuteAttributedStatement(cast<AttributedStmt>(stmt), curSwithCase);
 
     default:
         if (const Expr *expr = dyn_cast<Expr>(stmt))
@@ -160,7 +212,9 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
             return ESR_Succeeded;
         }
 
-        dbg() << "<><><><><><><><><> Unknown statement: " << stmt->getStmtClassName() << std::endl;
+        std::string stmtClassName = stmt->getStmtClassName();
+        stmt->dump();
+        dbg() << "<><><><><><><><><> Unknown statement: " << stmtClassName << std::endl;
         return ESR_Failed;
 #if 0
     case Stmt::DeclStmtClass: {
@@ -263,12 +317,6 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteStatement(const Stm
     case Stmt::LabelStmtClass:
       return EvaluateStmt(Result, Info, cast<LabelStmt>(S)->getSubStmt(), Case);
 
-    case Stmt::AttributedStmtClass:
-      // As a general principle, C++11 attributes can be ignored without
-      // any semantic impact.
-      return EvaluateStmt(Result, Info, cast<AttributedStmt>(S)->getSubStmt(),
-                          Case);
-
     case Stmt::CaseStmtClass:
     case Stmt::DefaultStmtClass:
       return EvaluateStmt(Result, Info, cast<SwitchCase>(S)->getSubStmt(), Case);
@@ -292,6 +340,19 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::EvaluateLoopBody(const cla
         return result;
     }
     llvm_unreachable("Invalid EvalStmtResult!");
+}
+
+InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteAttributedStatement(const clang::AttributedStmt* stmt, const SwitchCase* curSwithCase)
+{
+    auto attrs = GetStatementAttrs(stmt);
+
+    if (attrs.doInject)
+    {
+        InjectStatement(stmt->getSubStmt(), attrs.visibility);
+        return ESR_Succeeded;
+    }
+
+    return ExecuteStatement(stmt->getSubStmt(), curSwithCase);
 }
 
 
@@ -431,11 +492,11 @@ ScopeStack::DeclInfo* InterpreterImpl::CreateLocalVar(const VarDecl* decl)
     return &result;
 }
 
-bool InterpreterImpl::ExecuteDecl(const Decl* D)
+bool InterpreterImpl::ExecuteDecl(const Decl* decl)
 {
     bool OK = true;
 
-    if (const VarDecl *VD = dyn_cast<VarDecl>(D))
+    if (const VarDecl *VD = dyn_cast<VarDecl>(decl))
         OK &= ExecuteVarDecl(VD);
 
 #if 0
@@ -445,6 +506,58 @@ bool InterpreterImpl::ExecuteDecl(const Decl* D)
                 OK &= EvaluateDecl(Info, VD);
 #endif
     return OK;
+}
+
+void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string& visibility)
+{
+    Attributes attrs;
+
+    switch (stmt->getStmtClass())
+    {
+    case Stmt::CompoundStmtClass:
+    {
+        const CompoundStmt* s = cast<CompoundStmt>(stmt);
+        for (const auto* item : s->body())
+            InjectStatement(item, visibility);
+        return;
+    }
+    case Stmt::AttributedStmtClass:
+    {
+        auto attrStmt = cast<AttributedStmt>(stmt);
+        auto attrs = GetStatementAttrs(attrStmt);
+        if (attrs.isConstexpr)
+        {
+            ExecuteStatement(attrStmt->getSubStmt(), nullptr);
+            return;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+
+
+    auto& srcMgr = m_astContext->getSourceManager();
+    auto locStart = stmt->getLocStart();
+    auto locEnd = stmt->getLocEnd();
+    auto len = srcMgr.getFileOffset(locEnd) - srcMgr.getFileOffset(locStart);
+
+    auto buff = srcMgr.getCharacterData(locStart);
+    std::string content(buff, buff + len);
+
+    reflection::GenericDeclPart declPart;
+    declPart.content = std::move(content);
+
+    if (visibility == "public")
+        declPart.accessType = reflection::AccessType::Public;
+    else if (visibility == "protected")
+        declPart.accessType = reflection::AccessType::Protected;
+    else if (visibility == "private")
+        declPart.accessType = reflection::AccessType::Private;
+    else
+        declPart.accessType = reflection::AccessType::Undefined;
+
+    m_instance->genericParts.push_back(std::move(declPart));
 }
 
 
@@ -490,7 +603,10 @@ bool InterpreterImpl::DetectSpecialDecl(const clang::NamedDecl* decl, Value& val
             // assert(rec);
             std::string name = rec->getNameAsString();
             if (name == tmpName)
-                *actual = ReflectedObject(m_instance);
+            {
+                auto tmp = m_instance;
+                *actual = ReflectedObject(tmp);
+            }
         }
     }
 
@@ -508,7 +624,7 @@ bool InterpreterImpl::DetectSpecialDecl(const clang::NamedDecl* decl, Value& val
 
 bool InterpreterImpl::Report(MessageType type, const clang::SourceLocation& loc, std::string message)
 {
-    
+
     return !(type == MessageType::Error);
 }
 
