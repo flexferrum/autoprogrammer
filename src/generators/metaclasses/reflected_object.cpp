@@ -93,7 +93,7 @@ ReflectedObject::ReflectedObject(DataType val)
 
 bool ReflectedMethods::Compiler_message(InterpreterImpl* interpreter, const Compiler& obj, Value& result, const std::string& msg)
 {
-    std::cout << "###### " << msg << std::endl;
+    interpreter->Report(MessageType::Notice, )
     result = VoidValue();
     return true;
 }
