@@ -515,6 +515,21 @@ struct TypeReflection<reflection::EnumType>
     }
 };
 template <>
+struct TypeReflection<reflection::TemplateParamType>
+        : TypeReflected<reflection::TemplateParamType> {
+    static auto &GetAccessors() {
+        static std::unordered_map<std::string, FieldAccessor> accessors = {
+            {"isPack",
+             [](const reflection::TemplateParamType &obj) {
+                 return Reflect(obj.isPack);
+             }},
+            {"isTemplateParamType", [](const reflection::TemplateParamType&) { return true; }}
+        };
+
+        return accessors;
+    }
+};
+template <>
 struct TypeReflection<reflection::TypeInfo>
         : TypeReflected<reflection::TypeInfo> {
     static auto &GetAccessors() {
@@ -685,6 +700,32 @@ struct TypeReflection<reflection::MethodParamInfo>
     }
 };
 template <>
+struct TypeReflection<reflection::TemplateParamInfo>
+        : TypeReflected<reflection::TemplateParamInfo> {
+    static auto &GetAccessors() {
+        static std::unordered_map<std::string, FieldAccessor> accessors = {
+            {"tplDeclName",
+             [](const reflection::TemplateParamInfo &obj) {
+                 return Reflect(obj.tplDeclName);
+             }},
+            {"tplDeclName",
+             [](const reflection::TemplateParamInfo &obj) {
+                 return Reflect(obj.tplDeclName);
+             }},
+            {"kind",
+             [](const reflection::TemplateParamInfo &obj) {
+                 return Reflect(obj.kind);
+             }},
+            {"isParamPack",
+             [](const reflection::TemplateParamInfo &obj) {
+                 return Reflect(obj.isParamPack);
+             }},
+        };
+
+        return accessors;
+    }
+};
+template <>
 struct TypeReflection<reflection::MethodInfo>
         : TypeReflected<reflection::MethodInfo> {
     static auto &GetAccessors() {
@@ -759,10 +800,31 @@ struct TypeReflection<reflection::MethodInfo>
              [](const reflection::MethodInfo &obj) {
                  return Reflect(obj.isVirtual);
              }},
+            {"isTemplate",
+             [](const reflection::MethodInfo &obj) {
+                 return Reflect(obj.isTemplate());
+             }},
+            {"isInlined",
+             [](const reflection::MethodInfo &obj) {
+                 return Reflect(obj.isInlined | obj.isClassScopeInlined);
+             }},
+            {"isClassScopeInlined",
+             [](const reflection::MethodInfo &obj) {
+                 return Reflect(obj.isClassScopeInlined);
+             }},
+            {"isDefined",
+             [](const reflection::MethodInfo &obj) {
+                 return Reflect(obj.isDefined);
+             }},
             {"name",
              [](const reflection::MethodInfo &obj)
              {
                  return Reflect(obj.name);
+             }},
+            {"body",
+             [](const reflection::MethodInfo &obj)
+             {
+                 return obj.isDefined ? Reflect(obj.body) : Value();
              }},
             {"namespaceQualifier",
              [](const reflection::MethodInfo &obj) {
@@ -770,6 +832,8 @@ struct TypeReflection<reflection::MethodInfo>
              }},
             {"params",
              [](const reflection::MethodInfo &obj) { return Reflect(obj.params); }},
+            {"tplParams",
+             [](const reflection::MethodInfo &obj) { return Reflect(obj.tplParams); }},
             {"returnType",
              [](const reflection::MethodInfo &obj) {
                  return Reflect(obj.returnType);

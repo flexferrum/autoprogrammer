@@ -378,6 +378,23 @@ MethodInfoPtr AstReflector::ReflectMethod(const CXXMethodDecl* decl, NamespacesT
     methodInfo->fullPrototype = EntityToString(decl, m_astContext);
     methodInfo->decl = decl;
     methodInfo->returnType = TypeInfo::Create(decl->getReturnType(), m_astContext);
+    methodInfo->isInlined = decl->isInlined();
+    methodInfo->isDefined = decl->isDefined();
+
+    const clang::Stmt* body = nullptr;
+    if ((body = decl->getBody()) != nullptr)
+    {
+        auto& srcMgr = m_astContext->getSourceManager();
+        auto locStart = body->getLocStart();
+        auto locEnd = body->getLocEnd();
+        auto len = srcMgr.getFileOffset(locEnd) - srcMgr.getFileOffset(locStart);
+
+        auto buff = srcMgr.getCharacterData(locStart);
+        std::string content(buff, buff + len);
+        methodInfo->body = std::move(content);
+        methodInfo->isDefined = true;
+        methodInfo->isClassScopeInlined = decl->getDefinition() == decl->getFirstDecl();
+    }
 
     methodInfo->declLocation = GetLocation(decl, m_astContext);
     auto defDecl = decl->getDefinition();

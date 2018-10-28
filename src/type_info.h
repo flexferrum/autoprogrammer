@@ -92,6 +92,12 @@ struct TemplateType
     }
 };
 
+struct TemplateParamType
+{
+    bool isPack = false;
+    const clang::TemplateTypeParmDecl* decl = nullptr;
+};
+
 struct WellKnownType : TemplateType
 {
     enum Types
@@ -130,7 +136,20 @@ struct EnumType
 class TypeInfo
 {
 public:
-    using Type = boost::variant<NoType, BuiltinType, RecordType, TemplateType, WellKnownType, ArrayType, EnumType>;
+    using Type = boost::variant<NoType, BuiltinType, RecordType, TemplateType, WellKnownType, ArrayType, EnumType, TemplateParamType>;
+
+    struct TypeDescr
+    {
+        Type type;
+        std::string name;
+        std::string scopeSpec;
+        std::string namespaceQual;
+        bool isConst = false;
+        bool isVolatile = false;
+        bool isReference = false;
+        bool isRVReference = false;
+        int pointingLevels = 0;
+    };
 
     TypeInfo();
 
@@ -158,6 +177,10 @@ public:
     auto getAsEnumType() const
     {
         return boost::get<const EnumType>(&m_type);
+    }
+    auto getAsTemplateParamType() const
+    {
+        return boost::get<const TemplateParamType>(&m_type);
     }
     auto isNoType() const
     {
@@ -214,6 +237,7 @@ public:
             bool operator() (const BuiltinType&) const {return false;}
             bool operator() (const ArrayType&) const {return false;}
             bool operator() (const EnumType&) const {return false;}
+            bool operator() (const TemplateParamType&) const {return true;}
 
             bool operator() (const RecordType&) const
             {
@@ -249,7 +273,10 @@ public:
         return boost::apply_visitor(Visitor(this), m_type);
     }
 
+    TypeDescr getTypeDescr() const;
+
     static TypeInfoPtr Create(const clang::QualType& qt, const clang::ASTContext* astContext);
+    static TypeInfoPtr Create(const TypeDescr& descr);
 
 private:
     bool m_isConst = false;
@@ -342,6 +369,12 @@ inline std::ostream& operator << (std::ostream& os, const ArrayType& tp)
 inline std::ostream& operator << (std::ostream& os, const EnumType& tp)
 {
     os << "ENUM[" << tp.decl->getQualifiedNameAsString() << "]";
+    return os;
+}
+
+inline std::ostream& operator << (std::ostream& os, const TemplateParamType& tp)
+{
+    os << "AUTO[ispack=" << tp.isPack << "]";
     return os;
 }
 

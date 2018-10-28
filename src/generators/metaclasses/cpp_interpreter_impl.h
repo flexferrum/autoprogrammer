@@ -119,7 +119,8 @@ private:
     bool ExecuteAsBooleanCondition(const clang::Expr* expr, bool& result);
     bool ExecuteVarDecl(const clang::VarDecl *decl);
     bool ExecuteDecl(const clang::Decl *decl);
-    void InjectStatement(const clang::Stmt* stmt, const std::string& visibility);
+    void InjectStatement(const clang::Stmt* stmt, const std::string& visibility, bool isInitial);
+    void InjectMethod(const clang::LambdaExpr* le, const std::string& visibility);
 
     ScopeStack::DeclInfo* CreateLocalVar(const clang::VarDecl *decl);
 

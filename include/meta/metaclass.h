@@ -49,6 +49,8 @@ enum class AccessType
 class TypeInfo
 {
 public:
+    template<typename T>
+    TypeInfo& operator = (T&& other);
 };
 
 class ClassMemberBase
@@ -73,7 +75,7 @@ public:
 class MemberInfo : public ClassMemberBase
 {
 public:
-    const TypeInfo& type();
+    TypeInfo type() const;
 };
 
 class MethodInfo : public ClassMemberBase
@@ -87,7 +89,7 @@ public:
         bool is_default();
     };
 
-    const TypeInfo& return_type() const;
+    TypeInfo return_type() const;
     const Range<ParamInfo>& params() const;
     Range<ParamInfo>& params();
 
@@ -124,6 +126,9 @@ public:
     void make_const();
     void make_rv_ref();
     void make_pure_virtual();
+
+    template<typename ... Args>
+    TypeInfo operator()(Args&& ... args) const;
 };
 
 class ClassInfo
@@ -146,6 +151,11 @@ class MetaClassImplBase
 };
 
 } // detail
+
+template<typename T>
+T& project(T&& val);
+
+TypeInfo template_type(std::string name);
 } // meta
 
 #define METACLASS_DECL(ClassName) \
@@ -159,16 +169,27 @@ struct MetaClass_##ClassName : public meta::detail::MetaClassBase \
 struct ClassName##_Meta; \
 struct MetaClass_##ClassName::ClassName
 
-#define METACLASS_INST(MetaName, InstClassName) \
+#define METACLASS_INST_IMPL(InstClassName, MetaName, ClassType) \
 struct MetaClassInstance_##InstClassName : public meta::detail::MetaClassImplBase \
 { \
     using Metaclass = MetaName##_Meta; \
     class InstClassName; \
 }; \
 \
-class MetaClassInstance_##InstClassName::InstClassName
+ClassType MetaClassInstance_##InstClassName::InstClassName
+
+#define METACLASS_INST(InstClassName, MetaName, Type) METACLASS_INST_IMPL(N1, N2, class)
 
 #define META_CONSTEXPR [[gsl::suppress("constexpr")]]
 #define META_INJECT(vis) [[gsl::suppress("inject", #vis)]]
+#define META_ENUM()
+
+#define $_metaclass(N) METACLASS_DECL(N)
+#define $_class(N1, N2) METACLASS_INST_IMPL(N1, N2, class)
+#define $_struct(N1, N2) METACLASS_INST_IMPL(N1, N2, struct)
+#define $_inject(V) META_INJECT(V)
+#define $_constexpr META_CONSTEXPR
+#define $_t(v) decltype(v)
+#define $_v(v) meta::project(v)
 
 #endif // INCLUDE_META_METACLASS_H

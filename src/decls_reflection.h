@@ -74,6 +74,14 @@ struct MethodParamInfo
     const clang::ParmVarDecl* decl;
 };
 
+struct TemplateParamInfo
+{
+    std::string tplDeclName;
+    std::string tplRefName;
+    TemplateType::TplArgKind kind = TemplateType::TemplateTplArg;
+    bool isParamPack = false;
+};
+
 enum class AccessType
 {
     Public,
@@ -111,10 +119,12 @@ struct MethodInfo : public NamedDeclInfo
     SourceLocation declLocation;
     SourceLocation defLocation;
     std::vector<MethodParamInfo> params;
+    std::vector<TemplateParamInfo> tplParams;
     std::string fullPrototype;
     TypeInfoPtr returnType;
     std::string returnTypeAsString;
     AccessType accessType = AccessType::Undefined;
+    std::string body;
 
     bool isConst = false;
     bool isVirtual = false;
@@ -128,8 +138,13 @@ struct MethodInfo : public NamedDeclInfo
     bool isDeleted = false;
     bool isStatic = false;
     bool isExplicitCtor = false;
+    bool isInlined = false;
+    bool isClassScopeInlined = false;
+    bool isDefined = false;
     AssignmentOperType assignmentOperType = AssignmentOperType::None;
     ConstructorType constructorType = ConstructorType::None;
+
+    bool isTemplate() const {return !tplParams.empty();}
 
     const clang::CXXMethodDecl* decl;
 };

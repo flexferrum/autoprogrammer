@@ -25,6 +25,7 @@ public:
     virtual void Report(MessageType type, const reflection::SourceLocation& loc, std::string message) = 0;
     virtual void Report(MessageType type, const clang::SourceLocation& loc, const clang::ASTContext* astContext, std::string message) = 0;
     virtual std::ostream& GetDebugStream() = 0;
+    virtual ConsoleWriter* GetConsoleWriter() = 0;
 };
 } // codegen
 

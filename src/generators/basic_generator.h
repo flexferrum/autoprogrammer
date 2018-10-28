@@ -48,9 +48,10 @@ protected:
     void Report(MessageType type, const reflection::SourceLocation& loc, std::string message) override;
     void Report(MessageType type, const clang::SourceLocation& loc, const clang::ASTContext* astContext, std::string message) override;
     std::ostream& GetDebugStream() override {return dbg();}
-    
+    ConsoleWriter* GetConsoleWriter() override {return m_options.consoleWriter;}
+
     std::ostream& dbg() {return m_options.consoleWriter->DebugStream();}
-    
+
 private:
     bool GenerateOutputFile(const std::string& fileName, std::string tmpFileId, const clang::ASTContext* astContext, clang::SourceManager* sourceManager, std::function<bool (CppSourceStream&)> generator);
     clang::format::FormatStyle m_formatStyle;

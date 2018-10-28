@@ -34,8 +34,15 @@ R"(
 {% for part in class.genericParts | selectattr('accessType', 'in', access) %}
     {{ part.content }};
 {% endfor %}
+
 {% for method in class.methods | rejectattr('isImplicit') | selectattr('accessType', 'in', access) %}
-    {{'explicit ' if method.isExplicitCtor}}{{'virtual ' if method.isVirtual}}{{'constexpr ' if method.isConstexpr}}{{'static ' if method.isStatic}}{{ method.returnType.printedName }} {{method.name}}({{method.params | map(attribute='fullDecl') | join(', ')}}){{'const ' if method.isConst}}{{'noexcept ' if method.isNoExcept}}{{'= 0' if method.isPure}}{{'= delete' if method.isDeleted}}{{'= default' if method.isDefault}};
+    {% if method.isTemplate %}template< {{method.tplParams | map(attribute='tplDeclName') | join(', ') }} >{% endif %}
+    {{'explicit ' if method.isExplicitCtor}}{{'virtual ' if method.isVirtual}}{{'constexpr ' if method.isConstexpr}}{{'static ' if method.isStatic}}{{ method.returnType.printedName }} {{method.name}}({{method.params | map(attribute='fullDecl') | join(', ')}}){{'const ' if method.isConst}}{{'noexcept ' if method.isNoExcept}}{{'= 0' if method.isPure}}{{'= delete' if method.isDeleted}}{{'= default' if method.isDefault}}
+    {% if method.isDefined and method.isClassScopeInlined %}{ {{method.body}} }{% else %};{% endif %}
+{% endfor %}
+
+{% for member in class.members | selectattr('accessType', 'in', access) %}
+    {{'static ' if member.isStatic}}{{member.type.printedName}} {{ member.name }};
 {% endfor %}
 {% endmacro %}
 

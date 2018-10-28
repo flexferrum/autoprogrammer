@@ -6,13 +6,6 @@
 #include <string>
 #include <utility>
 
-#pragma clang attribute
-
-namespace meta
-{
-struct constexpr__ {};
-}
-
 // 'Interface' metaclass declaration
 METACLASS_DECL(Interface)
 {
@@ -35,11 +28,24 @@ METACLASS_DECL(Interface)
             compiler.require(f.is_public(), "Inteface function must be public");
 
             f.make_pure_virtual();
+
+            META_INJECT(public) [name=f.name(), is_virtual=true]($_t(f) fn, $_t(f.return_type())& result) -> int
+            {
+                try
+                {
+                    result = fn(fn.params());
+                    return 0;
+                }
+                catch (...)
+                {
+                    return 1;
+                }
+            };
         }
     }
 };
 
-METACLASS_INST(Interface, TestIface)
+METACLASS_INST(TestIface, Interface)
 {
     void TestMethod1();
     std::string TestMethod2(int param) const;

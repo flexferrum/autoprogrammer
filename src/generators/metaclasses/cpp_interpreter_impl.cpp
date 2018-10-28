@@ -8,6 +8,7 @@
 #include "value.h"
 #include "value_ops.h"
 #include "reflected_object.h"
+#include "ast_reflector.h"
 
 #include <clang/AST/Decl.h>
 #include <clang/AST/Attr.h>
@@ -348,7 +349,7 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteAttributedStatement
 
     if (attrs.doInject)
     {
-        InjectStatement(stmt->getSubStmt(), attrs.visibility);
+        InjectStatement(stmt->getSubStmt(), attrs.visibility, true);
         return ESR_Succeeded;
     }
 
@@ -365,83 +366,6 @@ bool InterpreterImpl::ExecuteExpression(const Expr* expr, Value& result)
     evaluator.Visit(expr);
 
     return isOk;
-#if 0
-    QualType exprType = expr->getType();
-    if (expr->isGLValue() || exprType->isFunctionType())
-    {
-        dbg() << "<><><><><><><><> Evaluate expression as LValue or function" << std::endl;
-//        LValue value;
-//        if (!EvaluateLValue(expr, LV, Info))
-//            return false;
-//        LV.moveInto(Result);
-    }
-    else if (exprType->isIntegralOrEnumerationType())
-    {
-        dbg() << "<><><><><><><><> Evaluate expression as kind of integer" << std::endl;
-//        if (!IntExprEvaluator(Info, Result).Visit(expr))
-//            return false;
-    }
-    else if (exprType->hasPointerRepresentation())
-    {
-        dbg() << "<><><><><><><><> Evaluate expression as kind of pointer" << std::endl;
-//        LValue LV;
-//        if (!EvaluatePointer(expr, LV, Info))
-//            return false;
-//        LV.moveInto(Result);
-    }
-    else if (exprType->isRealFloatingType())
-    {
-        dbg() << "<><><><><><><><> Evaluate expression as float value" << std::endl;
-//        llvm::APFloat F(0.0);
-//        if (!EvaluateFloat(expr, F, Info))
-//            return false;
-//        Result = APValue(F);
-    }
-    else if (exprType->isMemberPointerType())
-    {
-        dbg() << "<><><><><><><><> Evaluate expression as pointer to member" << std::endl;
-//        MemberPtr P;
-//        if (!EvaluateMemberPointer(expr, P, Info))
-//            return false;
-//        P.moveInto(Result);
-        return true;
-    }
-    else if (exprType->isArrayType())
-    {
-        dbg() << "<><><><><><><><> Evaluate expression as array" << std::endl;
-//        LValue LV;
-//        LV.set(expr, Info.CurrentCall->Index);
-//        APValue &Value = Info.CurrentCall->createTemporary(expr, false);
-//        if (!EvaluateArray(expr, LV, Value, Info))
-//            return false;
-//        Result = Value;
-    }
-    else if (exprType->isRecordType())
-    {
-        dbg() << "<><><><><><><><> Evaluate expression as record type" << std::endl;
-//        LValue LV;
-//        LV.set(expr, Info.CurrentCall->Index);
-//        APValue &Value = Info.CurrentCall->createTemporary(expr, false);
-//        if (!EvaluateRecord(expr, LV, Value, Info))
-//            return false;
-//        Result = Value;
-    }
-    else if (exprType->isVoidType())
-    {
-        dbg() << "<><><><><><><><> Evaluate expression as void type" << std::endl;
-//        if (!Info.getLangOpts().CPlusPlus11)
-//            Info.CCEDiag(expr, diag::note_constexpr_nonliteral)
-//                    << expr->getType();
-//        if (!EvaluateVoid(expr, Info))
-//            return false;
-    }
-    else
-    {
-        dbg() << "<><><><><><><><> Unsupported expression type: " << exprType->getTypeClassName() << std::endl;
-//        Info.FFDiag(expr, diag::note_invalid_subexpr_in_const_expr);
-        return false;
-    }
-#endif
 }
 
 bool InterpreterImpl::ExecuteAsBooleanCondition(const Expr* expr, bool& result)
@@ -508,17 +432,15 @@ bool InterpreterImpl::ExecuteDecl(const Decl* decl)
     return OK;
 }
 
-void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string& visibility)
+void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string& visibility, bool isInitial)
 {
-    Attributes attrs;
-
     switch (stmt->getStmtClass())
     {
     case Stmt::CompoundStmtClass:
     {
         const CompoundStmt* s = cast<CompoundStmt>(stmt);
         for (const auto* item : s->body())
-            InjectStatement(item, visibility);
+            InjectStatement(item, visibility, false);
         return;
     }
     case Stmt::AttributedStmtClass:
@@ -536,6 +458,17 @@ void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string
         break;
     }
 
+    if (isInitial)
+    {
+        const clang::LambdaExpr* le = cast<LambdaExpr>(stmt);
+        if (le != nullptr)
+        {
+            InjectMethod(le, visibility);
+            return;
+        }
+    }
+
+    stmt->dump();
 
     auto& srcMgr = m_astContext->getSourceManager();
     auto locStart = stmt->getLocStart();
@@ -558,6 +491,96 @@ void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string
         declPart.accessType = reflection::AccessType::Undefined;
 
     m_instance->genericParts.push_back(std::move(declPart));
+}
+
+void InterpreterImpl::InjectMethod(const clang::LambdaExpr* le, const std::string& visibility)
+{
+    std::cout << ">>> Method injection (via lambda) found" << std::endl;
+
+//    for (auto& cap : le->capture_inits())
+//    {
+//        std::cout << ">>>\t=======\n";
+//        cap->dump();
+//    }
+    std::string methodName;
+    bool isVirtual = false;
+
+    for (const clang::LambdaCapture& cap : le->explicit_captures())
+    {
+        std::cout << ">>>\tLambdaCapture kind: " << cap.getCaptureKind() << std::endl;
+        const clang::VarDecl* varDecl = cap.getCapturedVar();
+        if (!varDecl)
+            continue;
+
+        std::string varName = varDecl->getName().str();
+        std::cout << ">>>\tLambdaCapture name: " << varName << ", isInitializer: " << varDecl->isInitCapture() << std::endl;
+        if (!varDecl->isInitCapture())
+            continue;
+
+        auto* initExpr = varDecl->getInit();
+        Value initVal;
+        if (!ExecuteExpression(initExpr, initVal))
+            continue;
+
+        std::cout << ">>>\tInitValueKind: " << initVal.GetValue().which() << std::endl;
+        if (varName == "name")
+            methodName = boost::get<std::string>(initVal.GetValue());
+    }
+
+    if (methodName.empty())
+        return; // TODO: Handle invalid injection capture
+
+    reflection::AstReflector reflector(m_astContext, m_diagReporter->GetConsoleWriter());
+
+    const CXXMethodDecl* callOperator = le->getCallOperator();
+    auto callOperDescr = reflector.ReflectMethod(callOperator, nullptr);
+
+    reflection::MethodInfoPtr methodDecl = std::make_shared<reflection::MethodInfo>();
+    methodDecl->name = methodName;
+    methodDecl->returnType = callOperDescr->returnType;
+    methodDecl->returnTypeAsString = callOperDescr->returnTypeAsString;
+    methodDecl->params = callOperDescr->params;
+
+    int paramIdx = 0;
+    int tplParamIdx = 0;
+    char tplParamName[4];
+    for (auto& p : methodDecl->params)
+    {
+        auto curIdx = paramIdx ++;
+        std::cout << ">>>\tparam: " << p.name << " of type " << p.type << "\n";
+        const reflection::TemplateParamType* param = p.type->getAsTemplateParamType();
+        if (!param)
+            continue;
+
+        snprintf(tplParamName, sizeof(tplParamName), "T%d", tplParamIdx ++);
+        auto descr = p.type->getTypeDescr();
+        descr.name = tplParamName;
+
+        p.type = reflection::TypeInfo::Create(descr);
+        p.fullDecl = std::string(tplParamName) + " " + p.name;
+
+        reflection::TemplateParamInfo tplParamInfo;
+        tplParamInfo.tplDeclName = std::string("typename ") + tplParamName;
+        tplParamInfo.tplRefName = tplParamName;
+        tplParamInfo.kind = reflection::TemplateType::TemplateTplArg;
+        methodDecl->tplParams.push_back(std::move(tplParamInfo));
+    }
+
+    methodDecl->isInlined = true;
+    methodDecl->isClassScopeInlined = true;
+    methodDecl->isDefined = true;
+    methodDecl->body = "";
+
+    if (visibility == "public")
+        methodDecl->accessType = reflection::AccessType::Public;
+    else if (visibility == "protected")
+        methodDecl->accessType = reflection::AccessType::Protected;
+    else if (visibility == "private")
+        methodDecl->accessType = reflection::AccessType::Private;
+    else
+        methodDecl->accessType = reflection::AccessType::Undefined;
+
+    m_instance->methods.push_back(std::move(methodDecl));
 }
 
 
