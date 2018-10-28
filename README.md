@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/AndreyBronin/autoprogrammer.svg?branch=master)](https://travis-ci.org/AndreyBronin/autoprogrammer)
+[![Build Status](https://travis-ci.org/AndreyBronin/autoprogrammer.svg?branch=master)](https://travis-ci.org/AndreyBronin/autoprogrammer) [![Join the chat at https://gitter.im/autoprogrammer/Lobby](https://badges.gitter.im/autoprogrammer/Lobby.svg)](https://gitter.im/autoprogrammer/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # C++ code generation tool
 Welcome to **Autoprogrammer**, the **C++ code generation** tool!
