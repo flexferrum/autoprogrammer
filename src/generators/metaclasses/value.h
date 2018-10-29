@@ -116,9 +116,63 @@ public:
             m_value = val.m_value;
     }
 
+    std::string ToString() const;
+
 private:
     DataType m_value;
 };
+
+namespace detail
+{
+struct ValueToString : public boost::static_visitor<std::string>
+{
+    std::string operator()(EmptyValue) const
+    {
+        return "";
+    }
+    std::string operator()(VoidValue) const
+    {
+        return "";
+    }
+    std::string operator()(bool val) const
+    {
+        return val ? "true" : "false";
+    }
+    std::string operator()(const llvm::APInt& val) const
+    {
+        return val.toString(10, true);
+    }
+    std::string operator()(const llvm::APFloat& val) const
+    {
+        return "TODO: float_num";
+    }
+    std::string operator()(std::string val) const
+    {
+        return std::move(val);
+    }
+    std::string operator()(ReflectedObject) const
+    {
+        return "<ReflectedObject>";
+    }
+    std::string operator()(const Value::InternalRef& ref) const
+    {
+        return ref.pointee->ToString();
+    }
+    std::string operator()(const Value::Reference& ref) const
+    {
+        return ref.pointee->ToString();
+    }
+    std::string operator()(const Value::Pointer& ptr) const
+    {
+        return ptr.pointee ? ptr.pointee->ToString() : std::string("nullptr");
+    }
+};
+} // detail
+
+inline std::string Value::ToString() const
+{
+    return boost::apply_visitor(detail::ValueToString(), m_value);
+}
 
 } // interpreter
 } // codegen

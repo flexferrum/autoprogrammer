@@ -169,7 +169,7 @@ bool ReflectedMethods::ClassMemberBase_has_access(InterpreterImpl* interpreter, 
 
 bool ReflectedMethods::ClassMemberBase_name(InterpreterImpl* interpreter, reflection::NamedDeclInfoPtr obj, Value& result)
 {
-    result = Value(obj->name);
+    result = Value(std::string(obj->name));
 
     std::cout << "#### ReflectedMethods::ClassMemberBase_name called. Object: " << obj << std::endl;
     return true;

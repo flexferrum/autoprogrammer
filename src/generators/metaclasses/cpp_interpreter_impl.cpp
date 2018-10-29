@@ -23,7 +23,7 @@ namespace codegen
 {
 namespace interpreter
 {
-    
+
 class StatementInjectionContext : public CodeInjectionContext
 {
 public:
@@ -36,9 +36,9 @@ public:
     {
         m_os << fragment;
     }
-    
+
     std::string GetRenderResult() const {return m_os.str();}
-    
+
 private:
     std::ostringstream m_os;
 };
@@ -467,7 +467,7 @@ void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string
 
     if (isInitial)
     {
-        const clang::LambdaExpr* le = cast<LambdaExpr>(stmt);
+        const clang::LambdaExpr* le = dyn_cast_or_null<LambdaExpr>(stmt);
         if (le != nullptr)
         {
             InjectMethod(le, visibility);
@@ -476,7 +476,7 @@ void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string
     }
 
     stmt->dump();
-    
+
     auto content = InjectedCodeRenderer::RenderAsSnippet(this, stmt);
 
     m_injectionContextStack.top()->InjectCodeFragment(content, visibility);
@@ -546,7 +546,7 @@ void InterpreterImpl::InjectMethod(const clang::LambdaExpr* le, const std::strin
         descr.name = tplParamName;
 
         p.type = reflection::TypeInfo::Create(descr);
-        p.fullDecl = std::string(tplParamName) + " " + p.name;
+        p.fullDecl = p.type->getPrintedName() + " " + p.name;
 
         reflection::TemplateParamInfo tplParamInfo;
         tplParamInfo.tplDeclName = std::string("typename ") + tplParamName;
@@ -567,9 +567,9 @@ std::string InterpreterImpl::RenderInjectedConstexpr(const clang::Stmt* stmt)
 {
     StatementInjectionContext injectionContext;
     m_injectionContextStack.push(&injectionContext);
-    
+
     ExecuteStatement(stmt, nullptr);
-    
+
     m_injectionContextStack.pop();
     return injectionContext.GetRenderResult();
 }

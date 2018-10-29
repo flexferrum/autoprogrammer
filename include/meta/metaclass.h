@@ -197,5 +197,6 @@ ClassType MetaClassInstance_##InstClassName::InstClassName
 #define $_constexpr META_CONSTEXPR
 #define $_t(v) decltype(v)
 #define $_v(v) meta::project(v)
+#define $_str(str) meta::project(#str)
 
 #endif // INCLUDE_META_METACLASS_H
