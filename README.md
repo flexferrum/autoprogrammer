@@ -33,6 +33,26 @@ sudo docker run --rm -ti autoprogrammer fl-codegen --help
 
 # How to build and install
 
+## With preconfigured docker
+
 ```
 sudo docker build --tag autoprogrammer .
 ```
+
+## Manually on Linux
+
+### Prerequirements:
+* Ubuntu Image 16.4 (xenial)
+* LLVM 5.0 dev (`apt-get install llvm-5.0-dev`)
+* clang 5.0 dev (`apt-get install clang-5.0-dev`)
+* CMake 3.5
+* boost (>= 1.58) (`apt-get install libboost-all-dev`)
+* gtest (how-to-install: https://gist.github.com/Cartexius/4c437c084d6e388288201aadf9c8cdd5 )
+
+### Build
+
+* Clone this repository
+* Init and update all submodules (`git submodule update --init --recursive`)
+* Create the build directory (ex. `mkdir .build-debug`)
+* Run the CMake (`cmake -DCMAKE_BUILD_TYPE=Debug ../`)
+* Run the make (`cmake --build . --target all`)
