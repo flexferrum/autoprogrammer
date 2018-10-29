@@ -15,32 +15,35 @@ METACLASS_DECL(Interface)
         compiler.require($Interface.variables().empty(), "Interface may not contain data members");
 
         META_INJECT(public) {
-            enum {InterfaceId = 100500};
+            enum {InterfaceId = 123456};
         }
 
         for (auto& f : $Interface.functions())
         {
             compiler.require(f.is_implicit() || (!f.is_copy_ctor() && !f.is_move_ctor()),
                 "Interface can't contain copy or move constructor");
-
-            f.make_public();
-
-            compiler.require(f.is_public(), "Inteface function must be public");
-
-            f.make_pure_virtual();
-
-            META_INJECT(public) [name=f.name(), is_virtual=true]($_t(f) fn, $_t(f.return_type())& result) -> int
+                
+            if (!f.is_implicit())
             {
-                try
+                f.make_public();
+
+                compiler.require(f.is_public(), "Inteface function must be public");
+
+                f.make_pure_virtual();
+
+                META_INJECT(public) [name=f.name(), is_virtual=true]($_t(f) fn, $_t(f.return_type())& result) -> int
                 {
-                    result = fn(fn.params());
-                    return 0;
-                }
-                catch (...)
-                {
-                    return 1;
-                }
-            };
+                    try
+                    {
+                        result = fn(fn.params());
+                        return 0;
+                    }
+                    catch (...)
+                    {
+                        return 1;
+                    }
+                };
+            }
         }
     }
 };

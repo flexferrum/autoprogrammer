@@ -11,8 +11,6 @@ $_metaclass(BoostSerializable)
     {
         $_inject(public) [&, name="serialize"](auto ar, unsigned int ver) -> void
         {
-            ar.set_type(meta::template_type("Archive"));
-
             $_constexpr for (auto& v : $BoostSerializable.variables())
                 $_inject(_) ar & $_v(v);
         };

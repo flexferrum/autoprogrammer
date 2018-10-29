@@ -50,39 +50,39 @@ template<typename Coll>
 class StdCollectionRefRange : public RangeT
 {
 public:
-    StdCollectionRefRange(Coll* coll)
+    StdCollectionRefRange(Coll coll)
         : m_coll(coll)
     {}
 
     // RangeT interface
     bool Empty() override
     {
-        std::cout << "StdCollectionRefRange::Empty. Coll=" << m_coll << std::endl;
-        return m_coll->empty();
+        std::cout << "StdCollectionRefRange::Empty. Coll=" << &m_coll << std::endl;
+        return m_coll.empty();
     }
 
     Value Begin() override
     {
-        std::cout << "StdCollectionRefRange::Begin. Coll=" << m_coll << std::endl;
-        return ReflectedObject(MakeStdCollectionIterator(m_coll->begin()));
+        std::cout << "StdCollectionRefRange::Begin. Coll=" << &m_coll << std::endl;
+        return ReflectedObject(MakeStdCollectionIterator(m_coll.begin()));
     }
     Value End() override
     {
-        std::cout << "StdCollectionRefRange::End. Coll=" << m_coll << std::endl;
-        return ReflectedObject(MakeStdCollectionIterator(m_coll->end()));
+        std::cout << "StdCollectionRefRange::End. Coll=" << &m_coll << std::endl;
+        return ReflectedObject(MakeStdCollectionIterator(m_coll.end()));
     }
 
     Value ConstBegin() override {return Value();}
     Value ConstEnd() override {return Value();}
 
 private:
-    Coll* m_coll;
+    Coll m_coll;
 };
 
 template<typename Coll>
-auto MakeStdCollectionRefRange(Coll* coll)
+auto MakeStdCollectionRefRange(Coll&& coll)
 {
-    return std::make_shared<StdCollectionRefRange<Coll>>(coll);
+    return std::make_shared<StdCollectionRefRange<Coll>>(std::forward<Coll>(coll));
 }
 
 
@@ -110,7 +110,7 @@ bool ReflectedMethods::Compiler_require(InterpreterImpl* interpreter, const Comp
 
 bool ReflectedMethods::ClassInfo_variables(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result)
 {
-    auto rangePtr = MakeStdCollectionRefRange(&obj->members);
+    auto rangePtr = MakeStdCollectionRefRange(obj->members);
     result = Value(ReflectedObject(rangePtr));
 
     std::cout << "#### Range to ClassInfo::variables created" << std::endl;
@@ -119,7 +119,8 @@ bool ReflectedMethods::ClassInfo_variables(InterpreterImpl* interpreter, reflect
 
 bool ReflectedMethods::ClassInfo_functions(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result)
 {
-    auto rangePtr = MakeStdCollectionRefRange(&obj->methods);
+    auto methods = obj->methods;
+    auto rangePtr = MakeStdCollectionRefRange(std::move(methods));
     result = Value(ReflectedObject(rangePtr));
 
     std::cout << "#### Range to ClassInfo::functions created" << std::endl;
@@ -163,6 +164,14 @@ bool ReflectedMethods::ClassMemberBase_has_access(InterpreterImpl* interpreter, 
     result = Value(obj->accessType != reflection::AccessType::Undefined);
 
     std::cout << "#### ReflectedMethods::ClassMemberBase_has_access called. Object: " << obj << std::endl;
+    return true;
+}
+
+bool ReflectedMethods::ClassMemberBase_name(InterpreterImpl* interpreter, reflection::NamedDeclInfoPtr obj, Value& result)
+{
+    result = Value(obj->name);
+
+    std::cout << "#### ReflectedMethods::ClassMemberBase_name called. Object: " << obj << std::endl;
     return true;
 }
 

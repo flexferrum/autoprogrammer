@@ -75,7 +75,13 @@ private:
     size_t m_savedEnd;
 };
 
-class InterpreterImpl
+struct CodeInjectionContext
+{
+    virtual void InjectMethodDecl(reflection::MethodInfoPtr methodInfo, const std::string& visibility) = 0;
+    virtual void InjectCodeFragment(const std::string& fragment, const std::string& visibility) = 0;
+};
+
+class InterpreterImpl : public CodeInjectionContext
 {
 public:
     InterpreterImpl(const clang::ASTContext* astContext, IDiagnosticReporter* diagReporter, reflection::ClassInfoPtr metaclass, reflection::ClassInfoPtr inst)
@@ -85,6 +91,7 @@ public:
         , m_instance(inst)
     {
         m_scopes.m_visibleDecls = &m_visibleDecls;
+        m_injectionContextStack.push(this);
     }
 
     void ExecuteMethod(const clang::CXXMethodDecl* method);
@@ -121,7 +128,11 @@ private:
     bool ExecuteDecl(const clang::Decl *decl);
     void InjectStatement(const clang::Stmt* stmt, const std::string& visibility, bool isInitial);
     void InjectMethod(const clang::LambdaExpr* le, const std::string& visibility);
+    std::string RenderInjectedConstexpr(const clang::Stmt* stmt);
 
+    void InjectMethodDecl(reflection::MethodInfoPtr methodInfo, const std::string& visibility) override;
+    void InjectCodeFragment(const std::string& fragment, const std::string& visibility) override;
+    
     ScopeStack::DeclInfo* CreateLocalVar(const clang::VarDecl *decl);
 
     nonstd::expected<Value, std::string> GetDeclReference(const clang::NamedDecl* decl);
@@ -138,9 +149,59 @@ private:
     ScopeStack m_scopes;
     std::unordered_map<const clang::NamedDecl*, Value::InternalRef> m_visibleDecls;
     std::unordered_map<std::string, Value> m_globalVars;
+    std::stack<CodeInjectionContext*> m_injectionContextStack;
 
     friend class ExpressionEvaluator;
+    friend class InjectedCodeRenderer;
 };
+
+struct Attributes
+{
+    bool doInject = false;
+    bool isConstexpr = false;
+    std::string visibility = "default";
+};
+
+inline Attributes GetStatementAttrs(const clang::AttributedStmt* stmt)
+{
+    Attributes result;
+
+    for (const clang::Attr* attr : stmt->getAttrs())
+    {
+        const clang::SuppressAttr* suppAttr = llvm::cast<clang::SuppressAttr>(attr);
+        if (!suppAttr)
+            continue;
+
+        for (const clang::StringRef& id : suppAttr->diagnosticIdentifiers())
+        {
+            std::string idStr = id.str();
+            if (idStr == "inject")
+            {
+                result.doInject = true;
+            }
+            else if (idStr == "constexpr")
+            {
+                result.isConstexpr = true;
+            }
+            else if (idStr == "public")
+            {
+                result.visibility = "public";
+            }
+            else if (idStr == "protected")
+            {
+                result.visibility = "protected";
+            }
+            else if (idStr == "private")
+            {
+                result.visibility = "private";
+            }
+        }
+    }
+
+    return result;
+}
+
+
 
 } // interpreter
 } // codegen4

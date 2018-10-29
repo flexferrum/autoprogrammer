@@ -114,6 +114,8 @@ struct GenericDeclPart : public LocationInfo
     AccessType accessType = AccessType::Undefined;
 };
 
+using NamedDeclInfoPtr = std::shared_ptr<NamedDeclInfo>;
+
 struct MethodInfo : public NamedDeclInfo
 {
     SourceLocation declLocation;

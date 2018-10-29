@@ -178,11 +178,17 @@ struct MetaClassInstance_##InstClassName : public meta::detail::MetaClassImplBas
 \
 ClassType MetaClassInstance_##InstClassName::InstClassName
 
-#define METACLASS_INST(InstClassName, MetaName, Type) METACLASS_INST_IMPL(N1, N2, class)
+#define METACLASS_INST(InstClassName, MetaName) METACLASS_INST_IMPL(InstClassName, MetaName, class)
 
+#ifdef FL_CODEGEN_INVOKED_
 #define META_CONSTEXPR [[gsl::suppress("constexpr")]]
 #define META_INJECT(vis) [[gsl::suppress("inject", #vis)]]
 #define META_ENUM()
+#else
+#define META_CONSTEXPR
+#define META_INJECT(vis)
+#define META_ENUM()
+#endif
 
 #define $_metaclass(N) METACLASS_DECL(N)
 #define $_class(N1, N2) METACLASS_INST_IMPL(N1, N2, class)

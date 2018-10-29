@@ -86,6 +86,7 @@ public:
     static bool MethodInfo_is_public(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
     static bool ClassMemberBase_has_access(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
     static bool ClassMemberBase_make_public(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
+    static bool ClassMemberBase_name(InterpreterImpl* interpreter, reflection::NamedDeclInfoPtr obj, Value& result);
 
     static bool MethodInfo_is_implicit(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
     static bool MethodInfo_is_copy_ctor(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);

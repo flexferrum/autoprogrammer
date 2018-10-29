@@ -3,6 +3,7 @@
 #include "cpp_interpreter.h"
 #include "cpp_interpreter_impl.h"
 #include "expresssion_evaluator.h"
+#include "injected_code_renderer.h"
 
 #include "type_info.h"
 #include "value.h"
@@ -13,6 +14,8 @@
 #include <clang/AST/Decl.h>
 #include <clang/AST/Attr.h>
 
+#include <sstream>
+
 using namespace clang;
 using namespace reflection;
 
@@ -20,52 +23,25 @@ namespace codegen
 {
 namespace interpreter
 {
-
-struct Attributes
+    
+class StatementInjectionContext : public CodeInjectionContext
 {
-    bool doInject = false;
-    bool isConstexpr = false;
-    std::string visibility = "default";
-};
-
-Attributes GetStatementAttrs(const clang::AttributedStmt* stmt)
-{
-    Attributes result;
-
-    for (const clang::Attr* attr : stmt->getAttrs())
+public:
+    void InjectMethodDecl(reflection::MethodInfoPtr methodInfo, const std::string& visibility)
     {
-        const clang::SuppressAttr* suppAttr = cast<clang::SuppressAttr>(attr);
-        if (!suppAttr)
-            continue;
-
-        for (const clang::StringRef& id : suppAttr->diagnosticIdentifiers())
-        {
-            std::string idStr = id.str();
-            if (idStr == "inject")
-            {
-                result.doInject = true;
-            }
-            else if (idStr == "constexpr")
-            {
-                result.isConstexpr = true;
-            }
-            else if (idStr == "public")
-            {
-                result.visibility = "public";
-            }
-            else if (idStr == "protected")
-            {
-                result.visibility = "protected";
-            }
-            else if (idStr == "private")
-            {
-                result.visibility = "private";
-            }
-        }
+        assert(false);
+        return;
     }
-
-    return result;
-}
+    void InjectCodeFragment(const std::string& fragment, const std::string& visibility)
+    {
+        m_os << fragment;
+    }
+    
+    std::string GetRenderResult() const {return m_os.str();}
+    
+private:
+    std::ostringstream m_os;
+};
 
 void InterpreterImpl::ExecuteMethod(const CXXMethodDecl* method)
 {
@@ -432,6 +408,37 @@ bool InterpreterImpl::ExecuteDecl(const Decl* decl)
     return OK;
 }
 
+void InterpreterImpl::InjectMethodDecl(reflection::MethodInfoPtr methodDecl, const std::string& visibility)
+{
+    if (visibility == "public")
+        methodDecl->accessType = reflection::AccessType::Public;
+    else if (visibility == "protected")
+        methodDecl->accessType = reflection::AccessType::Protected;
+    else if (visibility == "private")
+        methodDecl->accessType = reflection::AccessType::Private;
+    else
+        methodDecl->accessType = reflection::AccessType::Undefined;
+
+    m_instance->methods.push_back(std::move(methodDecl));
+}
+
+void InterpreterImpl::InjectCodeFragment(const std::string& fragment, const std::string& visibility)
+{
+    reflection::GenericDeclPart declPart;
+    declPart.content = fragment;
+
+    if (visibility == "public")
+        declPart.accessType = reflection::AccessType::Public;
+    else if (visibility == "protected")
+        declPart.accessType = reflection::AccessType::Protected;
+    else if (visibility == "private")
+        declPart.accessType = reflection::AccessType::Private;
+    else
+        declPart.accessType = reflection::AccessType::Undefined;
+
+    m_instance->genericParts.push_back(std::move(declPart));
+}
+
 void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string& visibility, bool isInitial)
 {
     switch (stmt->getStmtClass())
@@ -469,28 +476,10 @@ void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string
     }
 
     stmt->dump();
+    
+    auto content = InjectedCodeRenderer::RenderAsSnippet(this, stmt);
 
-    auto& srcMgr = m_astContext->getSourceManager();
-    auto locStart = stmt->getLocStart();
-    auto locEnd = stmt->getLocEnd();
-    auto len = srcMgr.getFileOffset(locEnd) - srcMgr.getFileOffset(locStart);
-
-    auto buff = srcMgr.getCharacterData(locStart);
-    std::string content(buff, buff + len);
-
-    reflection::GenericDeclPart declPart;
-    declPart.content = std::move(content);
-
-    if (visibility == "public")
-        declPart.accessType = reflection::AccessType::Public;
-    else if (visibility == "protected")
-        declPart.accessType = reflection::AccessType::Protected;
-    else if (visibility == "private")
-        declPart.accessType = reflection::AccessType::Private;
-    else
-        declPart.accessType = reflection::AccessType::Undefined;
-
-    m_instance->genericParts.push_back(std::move(declPart));
+    m_injectionContextStack.top()->InjectCodeFragment(content, visibility);
 }
 
 void InterpreterImpl::InjectMethod(const clang::LambdaExpr* le, const std::string& visibility)
@@ -569,20 +558,21 @@ void InterpreterImpl::InjectMethod(const clang::LambdaExpr* le, const std::strin
     methodDecl->isInlined = true;
     methodDecl->isClassScopeInlined = true;
     methodDecl->isDefined = true;
-    methodDecl->body = "";
+    methodDecl->body = InjectedCodeRenderer::RenderAsSnippet(this, le->getBody(), 1);
 
-    if (visibility == "public")
-        methodDecl->accessType = reflection::AccessType::Public;
-    else if (visibility == "protected")
-        methodDecl->accessType = reflection::AccessType::Protected;
-    else if (visibility == "private")
-        methodDecl->accessType = reflection::AccessType::Private;
-    else
-        methodDecl->accessType = reflection::AccessType::Undefined;
-
-    m_instance->methods.push_back(std::move(methodDecl));
+    m_injectionContextStack.top()->InjectMethodDecl(methodDecl, visibility);
 }
 
+std::string InterpreterImpl::RenderInjectedConstexpr(const clang::Stmt* stmt)
+{
+    StatementInjectionContext injectionContext;
+    m_injectionContextStack.push(&injectionContext);
+    
+    ExecuteStatement(stmt, nullptr);
+    
+    m_injectionContextStack.pop();
+    return injectionContext.GetRenderResult();
+}
 
 nonstd::expected<Value, std::string> InterpreterImpl::GetDeclReference(const clang::NamedDecl* decl)
 {

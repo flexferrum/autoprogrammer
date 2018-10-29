@@ -244,6 +244,7 @@ void PrepareCommandLine(int argc, const char** argv, std::vector<const char*>& a
         return;
 
     args.push_back(argv[cur ++]);
+    args.push_back("-DFL_CODEGEN_INVOKED_");
     // TODO: Add additional options
 
     for (; cur < argc; ++ cur)
