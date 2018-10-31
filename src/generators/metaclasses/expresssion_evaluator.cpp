@@ -133,6 +133,16 @@ void ExpressionEvaluator::VisitStringLiteral(const clang::StringLiteral* expr)
     vScope.Submit(std::move(val));
 }
 
+void ExpressionEvaluator::VisitCXXBoolLiteralExpr(const clang::CXXBoolLiteralExpr* expr)
+{
+    VisitorScope vScope(this, "VisitCXXBoolLiteralExpr");
+    Value val(expr->getValue());
+
+    dbg() << "Bool literal found: '" << (expr->getValue() ? "true" : "false") << "'" << std::endl;
+
+    vScope.Submit(std::move(val));
+}
+
 void ExpressionEvaluator::VisitExprWithCleanups(const clang::ExprWithCleanups* expr)
 {
     VisitorScope vScope(this, "VisitExprWithCleanups");

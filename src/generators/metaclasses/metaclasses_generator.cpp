@@ -79,15 +79,12 @@ void MetaclassesGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::M
 
     if (const clang::CXXRecordDecl* decl = matchResult.Nodes.getNodeAs<clang::CXXRecordDecl>("MetaclassDecl"))
     {
-        if (IsFromInputFiles(decl->getLocStart(), matchResult.Context))
-        {
-            reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);
+        reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);
 
-            auto ci = reflector.ReflectClass(decl, &m_namespaces);
+        auto ci = reflector.ReflectClass(decl, &m_namespaces);
 
-            dbg() << "### Declaration of metaclass found: " << ci->GetFullQualifiedName() << std::endl;
-            ProcessMetaclassDecl(ci, matchResult.Context);
-        }
+        dbg() << "### Declaration of metaclass found: " << ci->GetFullQualifiedName() << std::endl;
+        ProcessMetaclassDecl(ci, matchResult.Context);
     }
     if (const clang::CXXRecordDecl* decl = matchResult.Nodes.getNodeAs<clang::CXXRecordDecl>("MetaclassImpl"))
     {

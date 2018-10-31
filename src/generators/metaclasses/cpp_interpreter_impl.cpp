@@ -493,6 +493,8 @@ void InterpreterImpl::InjectMethod(const clang::LambdaExpr* le, const std::strin
 //    }
     std::string methodName;
     bool isVirtual = false;
+    bool isConst = false;
+    bool isStatic = false;
 
     for (const clang::LambdaCapture& cap : le->explicit_captures())
     {
@@ -514,6 +516,12 @@ void InterpreterImpl::InjectMethod(const clang::LambdaExpr* le, const std::strin
         std::cout << ">>>\tInitValueKind: " << initVal.GetValue().which() << std::endl;
         if (varName == "name")
             methodName = boost::get<std::string>(initVal.GetValue());
+        else if (varName == "is_const")
+            isConst = boost::get<bool>(initVal.GetValue());
+        else if (varName == "is_virtual")
+            isVirtual = boost::get<bool>(initVal.GetValue());
+        else if (varName == "is_static")
+            isStatic = boost::get<bool>(initVal.GetValue());
     }
 
     if (methodName.empty())
@@ -529,6 +537,9 @@ void InterpreterImpl::InjectMethod(const clang::LambdaExpr* le, const std::strin
     methodDecl->returnType = callOperDescr->returnType;
     methodDecl->returnTypeAsString = callOperDescr->returnTypeAsString;
     methodDecl->params = callOperDescr->params;
+    methodDecl->isConst = isConst;
+    methodDecl->isVirtual = isVirtual;
+    methodDecl->isStatic = isStatic;
 
     int paramIdx = 0;
     int tplParamIdx = 0;
