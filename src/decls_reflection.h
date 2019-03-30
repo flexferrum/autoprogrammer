@@ -41,10 +41,10 @@ struct NamedDeclInfo
 
         return result;
     }
-    std::string GetFullQualifiedName(bool includeGlobalScope = true) const
+    std::string GetFullQualifiedName() const
     {
         auto fqScope = GetFullQualifiedScope();
-        const char* prefix = includeGlobalScope || !fqScope.empty() ? "::" : "";
+        const char* prefix = !fqScope.empty() ? "::" : "";
         return !name.empty() ? fqScope + prefix + name : "";
     }
     std::string GetScopedName() const
@@ -74,6 +74,14 @@ struct MethodParamInfo
     const clang::ParmVarDecl* decl;
 };
 
+struct TemplateParamInfo
+{
+    std::string tplDeclName;
+    std::string tplRefName;
+    TemplateType::TplArgKind kind = TemplateType::TemplateTplArg;
+    bool isParamPack = false;
+};
+
 enum class AccessType
 {
     Public,
@@ -100,15 +108,25 @@ enum class ConstructorType
     Convert
 };
 
+struct GenericDeclPart : public LocationInfo
+{
+    std::string content;
+    AccessType accessType = AccessType::Undefined;
+};
+
+using NamedDeclInfoPtr = std::shared_ptr<NamedDeclInfo>;
+
 struct MethodInfo : public NamedDeclInfo
 {
     SourceLocation declLocation;
     SourceLocation defLocation;
     std::vector<MethodParamInfo> params;
+    std::vector<TemplateParamInfo> tplParams;
     std::string fullPrototype;
     TypeInfoPtr returnType;
     std::string returnTypeAsString;
     AccessType accessType = AccessType::Undefined;
+    std::string body;
 
     bool isConst = false;
     bool isVirtual = false;
@@ -122,8 +140,13 @@ struct MethodInfo : public NamedDeclInfo
     bool isDeleted = false;
     bool isStatic = false;
     bool isExplicitCtor = false;
+    bool isInlined = false;
+    bool isClassScopeInlined = false;
+    bool isDefined = false;
     AssignmentOperType assignmentOperType = AssignmentOperType::None;
     ConstructorType constructorType = ConstructorType::None;
+
+    bool isTemplate() const {return !tplParams.empty();}
 
     const clang::CXXMethodDecl* decl;
 };
@@ -141,18 +164,57 @@ struct MemberInfo : public NamedDeclInfo, public LocationInfo
 
 using MemberInfoPtr = std::shared_ptr<MemberInfo>;
 
+struct TypedefInfo : public NamedDeclInfo, public LocationInfo
+{
+    TypeInfoPtr aliasedType;
+    const clang::TypedefNameDecl* decl;
+};
+
+using TypedefInfoPtr = std::shared_ptr<TypedefInfo>;
+
 struct ClassInfo : public NamedDeclInfo, public LocationInfo
 {
     struct BaseInfo
     {
-        TypeInfo baseClass;
+        TypeInfoPtr baseClass;
         AccessType accessType;
         bool isVirtual;
     };
 
     struct InnerDeclInfo
     {
-        using DeclType = boost::variant<ClassInfoPtr, EnumInfoPtr>;
+        using DeclType = boost::variant<ClassInfoPtr, EnumInfoPtr, TypedefInfoPtr>;
+
+        auto AsClassInfo() const
+        {
+            ClassInfoPtr def;
+            auto ptr = boost::get<ClassInfoPtr>(&innerDecl);
+            if (!ptr)
+                return def;
+            return *ptr;
+        }
+
+        auto AsEnumInfo() const
+        {
+            EnumInfoPtr def;
+            auto ptr = boost::get<EnumInfoPtr>(&innerDecl);
+            if (!ptr)
+                return def;
+            return *ptr;
+        }
+
+        auto AsTypedefInfo() const
+        {
+            TypedefInfoPtr def;
+            auto ptr = boost::get<TypedefInfoPtr>(&innerDecl);
+            if (!ptr)
+                return def;
+            return *ptr;
+        }
+
+        bool IsClass() const {return innerDecl.which() == 0;}
+        bool IsEnum() const {return innerDecl.which() == 1;}
+        bool IsTypedef() const {return innerDecl.which() == 2;}
 
         DeclType innerDecl;
         AccessType acessType;
@@ -162,6 +224,7 @@ struct ClassInfo : public NamedDeclInfo, public LocationInfo
     std::vector<MemberInfoPtr> members;
     std::vector<MethodInfoPtr> methods;
     std::vector<InnerDeclInfo> innerDecls;
+    std::vector<GenericDeclPart> genericParts;
 
     bool isTrivial = false;
     bool isAbstract = false;
@@ -194,6 +257,7 @@ struct NamespaceInfo : public NamedDeclInfo
     std::vector<NamespaceInfoPtr> innerNamespaces;
     std::vector<EnumInfoPtr> enums;
     std::vector<ClassInfoPtr> classes;
+    std::vector<TypedefInfoPtr> typedefs;
 
     const clang::NamespaceDecl *decl = nullptr;
 };

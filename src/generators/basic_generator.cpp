@@ -1,4 +1,5 @@
 #include "basic_generator.h"
+#include "decls_reflection.h"
 
 #include <clang/AST/ASTContext.h>
 #include <clang/Basic/SourceManager.h>
@@ -7,11 +8,63 @@
 #include <clang/Rewrite/Core/Rewriter.h>
 #include <clang/Format/Format.h>
 
+#include <llvm/Support/Path.h>
+#include <llvm/Support/JamCRC.h>
+#include <llvm/ADT/ArrayRef.h>
+#include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
+
+#include <jinja2cpp/reflected_value.h>
+
 #include <fstream>
 #include <sstream>
 
 namespace codegen
 {
+auto g_headerSkeleton =
+R"(
+{% if headerGuard is defined %}
+ #ifndef {{headerGuard}}
+ #define {{headerGuard}}
+{% else %}
+ #pragma once
+{% endif %}
+
+{% for fileName in inputFiles | sort %}
+ #include "{{fileName}}"
+{% endfor %}
+
+{% for fileName in extraHeaders | sort %}
+{% if fileName is startsWith('<') %}
+ #include {{fileName}}
+{% else %}
+ #include "{{fileName}}"
+{% endif %}
+{% endfor %}
+
+{% block generator_headers %}{% endblock %}
+
+{% block namespaced_decls %}
+{% set ns = rootNamespace %}
+{#ns | pprint}
+{{rootNamespace | pprint} #}
+{% block namespace_content scoped %}{%endblock%}
+{% for ns in rootNamespace.innerNamespaces recursive %}namespace {{ns.name}}
+{
+{{self.namespace_content()}}
+{{ loop(ns.innerNamespaces) }}
+}
+{% endfor %}
+{% endblock %}
+
+{% block global_decls %}{% endblock %}
+
+{% if headerGuard is defined %}
+ #endif // {{headerGuard}}
+{% endif %}
+)";
+
+
 BasicGenerator::BasicGenerator(const Options &opts)
     : m_options(opts)
 {
@@ -56,6 +109,9 @@ FileState OpenGeneratedFile(const std::string& fileName, std::ofstream& fileStre
 
 bool BasicGenerator::GenerateOutput(const clang::ASTContext* astContext, clang::SourceManager* sourceManager)
 {
+    m_templateEnv.AddFilesystemHandler(std::string(), m_inMemoryTemplates);
+    m_inMemoryTemplates.AddFile("header_skeleton.j2tpl", g_headerSkeleton);
+
     if (!clang::format::getPredefinedStyle(m_options.formatStyleName, clang::format::FormatStyle::LK_Cpp, &m_formatStyle))
     {
         std::cout << "Can't load style with name: " << m_options.formatStyleName << std::endl;
@@ -150,5 +206,43 @@ void BasicGenerator::WriteExtraHeaders(CppSourceStream& os)
         os << (quoted ? "\"" : "") << h << (quoted ? "\"" : "") << "\n";
     }
 }
+
+std::string BasicGenerator::GetHeaderGuard(const std::string& filePath)
+{
+    std::string fileName = llvm::sys::path::filename(filePath).str();
+    boost::algorithm::replace_all(fileName, ".", "_");
+    boost::algorithm::replace_all(fileName, "-", "_");
+    boost::algorithm::replace_all(fileName, " ", "_");
+    boost::algorithm::to_upper(fileName);
+    llvm::JamCRC crcCalc;
+    crcCalc.update(llvm::ArrayRef<char>(filePath.data(), filePath.size()));
+    uint32_t fileHash = crcCalc.getCRC();
+
+    std::ostringstream str;
+    str << "_" << fileName << "_" << fileHash;
+    return str.str();
+}
+
+void BasicGenerator::SetupCommonTemplateParams(jinja2::ValuesMap& params)
+{
+    params["extraHeaders"] = jinja2::Reflect(m_options.extraHeaders);
+}
+
+void BasicGenerator::Report(MessageType type, const std::string fileName, unsigned line, unsigned col, std::string message)
+{
+    m_options.consoleWriter->WriteMessage(type, fileName, line, col, message);
+}
+
+void BasicGenerator::Report(MessageType type, const reflection::SourceLocation& loc, std::string message)
+{
+    Report(type, loc.fileName, loc.line, loc.column, std::move(message));
+}
+
+void BasicGenerator::Report(MessageType type, const clang::SourceLocation& loc, const clang::ASTContext* astContext, std::string message)
+{
+    // TODO:
+}
+
+
 
 } // codegen

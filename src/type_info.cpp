@@ -6,9 +6,12 @@
 #include <clang/AST/TypeVisitor.h>
 #include <clang/AST/DeclTemplate.h>
 
-#include <iostream>
+#include <boost/algorithm/string/find.hpp>
 
-namespace reflection 
+#include <iostream>
+#include <sstream>
+
+namespace reflection
 {
 
 class TypeUnwrapper : public clang::TypeVisitor<TypeUnwrapper, bool>
@@ -19,7 +22,7 @@ public:
         , m_astContext(astContext)
     {
     }
-    
+
     bool VisitBuiltinType(const clang::BuiltinType* tp)
     {
         BuiltinType result;
@@ -144,41 +147,41 @@ public:
         m_targetType->m_type = result;
         m_targetType->m_scopedName = m_targetType->m_declaredName;
         m_targetType->m_fullQualifiedName = m_targetType->m_declaredName;
-        
+
         return true;
     }
-    
+
     bool VisitElaboratedType(const clang::ElaboratedType* tp)
     {
         return VisitQualType(tp->isSugared() ? tp->desugar() : tp->getNamedType());
     }
-    
+
     bool VisitReferenceType(const clang::ReferenceType* tp)
     {
         if (tp->isSpelledAsLValue())
             m_targetType->m_isReference = true;
         else
             m_targetType->m_isRVReference = true;
-        
+
         return VisitQualType(tp->getPointeeType());
     }
-    
+
     bool VisitDecayedType(const clang::DecayedType* tp)
     {
         return VisitQualType(tp->getOriginalType());
     }
-    
+
     bool VisitPointerType(const clang::PointerType* tp)
     {
         m_targetType->m_pointingLevels ++;
         return VisitQualType(tp->getPointeeType());
     }
-    
+
     bool VisitTypedefType(const clang::TypedefType* tp)
     {
         return VisitQualType(tp->getDecl()->getUnderlyingType());
     }
-    
+
     bool VisitRecordType(const clang::RecordType* tp)
     {
         RecordType result;
@@ -187,21 +190,21 @@ public:
         m_targetType->m_type = result;
         return true;
     }
-    
+
     bool VisitTemplateSpecializationType(const clang::TemplateSpecializationType* tp)
     {
         WellKnownType result;
-        
+
         clang::TemplateName tplName = tp->getTemplateName();
         if (tplName.getKind() != clang::TemplateName::Template)
             return false;
         const clang::TemplateDecl* tplDecl = tplName.getAsTemplateDecl();
         result.decl = tplDecl;
         FillDeclDependentFields(tplDecl);
-        
+
         if (tp->isTypeAlias())
             result.aliasedType = TypeInfo::Create(tp->getAliasedType(), m_astContext);
-        
+
         for (const clang::TemplateArgument& tplArg : tp->template_arguments())
         {
             TemplateType::TplArg argInfo;
@@ -235,32 +238,41 @@ public:
                     argInfo = ConvertAPSInt(value).AsSigned();
                 else
                     argInfo = TemplateType::GenericArg{TemplateType::UnknownTplArg};
-                
+
                 break;
             }
             case clang::TemplateArgument::Pack:
                 argInfo = TemplateType::GenericArg{TemplateType::PackTplArg};
-                break;                
+                break;
             }
             result.arguments.push_back(argInfo);
         }
-        
+
         bool isWellKnownType = DetectWellKnownType(result);
-        
+
         if (isWellKnownType)
             m_targetType->m_type = std::move(result);
         else
             m_targetType->m_type = static_cast<TemplateType&&>(std::move(result));
-        
+
         return true;
     }
-    
+
+    bool VisitTemplateTypeParmType(const clang::TemplateTypeParmType* tp)
+    {
+        TemplateParamType result;
+        result.decl = tp->getDecl();
+        result.isPack = tp->isParameterPack();
+        m_targetType->m_type = result;
+        return true;
+    }
+
     bool DetectWellKnownType(WellKnownType& typeInfo)
     {
         bool result = true;
         if (m_targetType->m_fullQualifiedName == "std::basic_string")
         {
-            const BuiltinType* charType = typeInfo.GetTypeArg(0)->getAsBuiltin(); 
+            const BuiltinType* charType = typeInfo.GetTypeArg(0)->getAsBuiltin();
             if (charType->type == BuiltinType::Char)
                 typeInfo.type = WellKnownType::StdString;
             else if (charType->type == BuiltinType::WChar)
@@ -292,19 +304,19 @@ public:
             typeInfo.type = WellKnownType::StdOptional;
         else
             result = false;
-        
+
         return result;
     }
-    
+
     bool VisitEnumType(const clang::EnumType* tp)
     {
         EnumType result;
         result.decl = tp->getDecl();
         FillDeclDependentFields(result.decl);
         m_targetType->m_type = result;
-        return true;        
+        return true;
     }
-    
+
     bool VisitConstantArrayType(const clang::ConstantArrayType* tp)
     {
         ArrayType result;
@@ -320,15 +332,15 @@ public:
         m_targetType->m_type = result;
         return true;
     }
-    
+
     bool VisitQualType(const clang::QualType& qt)
     {
         m_targetType->m_isConst |= qt.isConstQualified();
         m_targetType->m_isVolatile |= qt.isVolatileQualified();
 
-        return Visit(qt.getTypePtr());        
+        return Visit(qt.getTypePtr());
     }
-    
+
 private:
     void FillDeclDependentFields(const clang::NamedDecl* decl)
     {
@@ -338,7 +350,7 @@ private:
         m_targetType->m_scopedName = declInfo.scopeSpecifier.empty() ? declInfo.name : declInfo.scopeSpecifier + "::" + declInfo.name;
         m_targetType->m_fullQualifiedName = declInfo.namespaceQualifier.empty() ? m_targetType->m_scopedName : declInfo.namespaceQualifier + "::" + m_targetType->m_scopedName;
     }
-    
+
 private:
     TypeInfo* m_targetType;
     const clang::ASTContext* m_astContext;
@@ -346,26 +358,85 @@ private:
 
 TypeInfo::TypeInfo()
 {
-    
+
+}
+
+TypeInfo::TypeDescr TypeInfo::getTypeDescr() const
+{
+    TypeDescr result;
+
+    auto getScope = [](const std::string& full, const std::string& name)
+    {
+        auto range = boost::algorithm::find_last(full, name);
+        if (range.begin() == full.begin())
+            return std::string();
+
+        return full.substr(0, range.begin() - full.begin() - 2);
+    };
+
+    result.name = m_declaredName;
+    result.scopeSpec = getScope(m_scopedName, m_declaredName);
+    result.namespaceQual = getScope(m_fullQualifiedName, m_scopedName);
+    result.isConst = m_isConst;
+    result.isReference = m_isReference;
+    result.isRVReference = m_isRVReference;
+    result.isVolatile = m_isVolatile;
+    result.pointingLevels = m_pointingLevels;
+    result.type = m_type;
+
+    return result;
 }
 
 TypeInfoPtr TypeInfo::Create(const clang::QualType& qt, const clang::ASTContext* astContext)
 {
     TypeInfoPtr result = std::make_shared<TypeInfo>();
-    
+
     result->m_printedName = EntityToString(&qt, astContext);
     result->m_typeDecl= qt.getTypePtr();
-    
+
     TypeUnwrapper visitor(result.get(), astContext);
     bool unwrapped = visitor.VisitQualType(qt);
-    
+
     if (!unwrapped) // result->m_type.empty())
     {
         result->m_typeDecl->dump();
         std::clog << std::endl;
     }
     // std::clog << "### Unwrapped type: " << result->getFullQualifiedName() << ", " << result << std::endl;
-    
+
+    return result;
+}
+
+TypeInfoPtr TypeInfo::Create(const TypeInfo::TypeDescr& descr)
+{
+    TypeInfoPtr result = std::make_shared<TypeInfo>();
+
+    result->m_type = descr.type;
+    result->m_declaredName = descr.name;
+    result->m_scopedName = descr.scopeSpec.empty() ? descr.name : descr.scopeSpec + "::" + descr.name;
+    result->m_fullQualifiedName = descr.namespaceQual.empty() ? result->m_scopedName : descr.namespaceQual + "::" + result->m_scopedName;
+    result->m_isConst = descr.isConst;
+    result->m_isReference = descr.isReference;
+    result->m_isRVReference = descr.isRVReference;
+    result->m_isVolatile = descr.isVolatile;
+    result->m_pointingLevels = descr.pointingLevels;
+
+    std::ostringstream os;
+    if (descr.isConst)
+        os << "const ";
+    if (descr.isVolatile)
+        os << "volatile ";
+    os << result->m_fullQualifiedName;
+
+    if (descr.isReference)
+        os << "&";
+    else if (descr.isRVReference)
+        os << "&&";
+    else for(int i = 0; i < descr.pointingLevels; ++ i)
+        os << "*";
+
+    result->m_printedName = os.str();
+
     return result;
 }
 

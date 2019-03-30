@@ -7,6 +7,8 @@
 
 namespace codegen
 {
+class ConsoleWriter;
+
 enum class Standard
 {
     Auto,
@@ -21,7 +23,9 @@ enum class GeneratorId
     Unknown = -1,
     Enum2StringGen,
     PimplGen,
-    TestsGen
+    Jinja2ReflectGen,
+    TestsGen,
+    MetaclassesGen
 };
 
 enum class TestEngine
@@ -58,6 +62,7 @@ struct Options
     bool debugMode = false;
     Standard targetStandard = Standard::Auto;
     TestGenOptions testGenOptions;
+    ConsoleWriter* consoleWriter = nullptr;    
 };
 
 } // codegen

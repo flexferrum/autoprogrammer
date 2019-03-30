@@ -15,12 +15,15 @@
 
 #include "options.h"
 #include "generator_base.h"
+#include "console_writer.h"
 
 using namespace llvm;
 
 extern codegen::GeneratorPtr CreateEnum2StringGen(const codegen::Options&);
 extern codegen::GeneratorPtr CreatePimplGen(const codegen::Options&);
+extern codegen::GeneratorPtr CreateJinja2ReflectGen(const codegen::Options&);
 extern codegen::GeneratorPtr CreateTestGen(const codegen::Options&);
+extern codegen::GeneratorPtr CreateMetaclassesGen(const codegen::Options&);
 
 namespace
 {
@@ -50,7 +53,9 @@ cl::opt<codegen::GeneratorId> GenerationMode(cl::desc("Choose generation mode:")
   cl::values(
         clEnumValN(codegen::GeneratorId::Enum2StringGen, "gen-enum2string" , "Enum2string conversion generation"),
         clEnumValN(codegen::GeneratorId::PimplGen, "gen-pimpl" , "Pimpl wrapper classes generation"),
-        clEnumValN(codegen::GeneratorId::TestsGen, "gen-tests" , "Test cases generation")
+        clEnumValN(codegen::GeneratorId::Jinja2ReflectGen, "gen-jinja2reflect" , "Jinja2 reflection generation"),
+        clEnumValN(codegen::GeneratorId::TestsGen, "gen-tests" , "Test cases generation"),
+        clEnumValN(codegen::GeneratorId::MetaclassesGen, "gen-metaclasses" , "Test cases generation")
     ), cl::Required, cl::cat(CodeGenCategory));
 
 // Define options for output file names
@@ -59,6 +64,7 @@ cl::opt<std::string> OutputHeaderName("ohdr", cl::desc("Specify output header fi
 cl::opt<std::string> OutputSourceName("osrc", cl::desc("Specify output source filename"), cl::value_desc("filename"), cl::cat(CodeGenCategory));
 cl::opt<std::string> FileToUpdateName("update", cl::desc("Specify source filename for code update"), cl::value_desc("filename"), cl::cat(CodeGenCategory));
 cl::opt<bool> ShowClangErrors("show-clang-diag", cl::desc("Show clang diagnostic during file processing"), cl::value_desc("flag"), cl::init(false), cl::cat(CodeGenCategory));
+cl::opt<bool> RunInDebugMode("debug-mode", cl::desc("Show tool debug output"), cl::value_desc("flag"), cl::init(false), cl::cat(CodeGenCategory));
 cl::list<std::string> ExtraHeaders("eh", cl::desc("Specify extra header files for include into generation result"), cl::value_desc("filename"), cl::ZeroOrMore, cl::cat(CodeGenCategory));
 cl::list<std::string> InputFiles("input", cl::desc("Specify input files to process"), cl::value_desc("filename"), cl::ZeroOrMore, cl::cat(CodeGenCategory));
 cl::opt<std::string> FormatStyle("format-style", cl::desc("Specify style name or configuration file name for the formatting style"), cl::init("LLVM"), cl::value_desc("stylename or filename"), cl::cat(CodeGenCategory));
@@ -106,7 +112,9 @@ cl::extrahelp MoreHelp("\nCode generation tool help text...");
 std::vector<std::pair<codegen::GeneratorId, codegen::GeneratorFactory>> GenFactories = {
     {codegen::GeneratorId::Enum2StringGen, CreateEnum2StringGen},
     {codegen::GeneratorId::PimplGen, CreatePimplGen},
+    {codegen::GeneratorId::Jinja2ReflectGen, CreateJinja2ReflectGen},
     {codegen::GeneratorId::TestsGen, CreateTestGen},
+    {codegen::GeneratorId::MetaclassesGen, CreateMetaclassesGen},
 };
 }
 
@@ -160,6 +168,7 @@ void ParseOptions(codegen::Options& options, clang::tooling::CommonOptionsParser
     options.outputSourceName = OutputSourceName;
     options.targetStandard = LangStandart;
     options.extraHeaders = ExtraHeaders;
+    options.debugMode = RunInDebugMode;
     if (llvm::sys::fs::exists(static_cast<std::string>(FormatStyle)))
         options.formatStyleConfig = FormatStyle;
     else
@@ -235,6 +244,7 @@ void PrepareCommandLine(int argc, const char** argv, std::vector<const char*>& a
         return;
 
     args.push_back(argv[cur ++]);
+    args.push_back("-DFL_CODEGEN_INVOKED_");
     // TODO: Add additional options
 
     for (; cur < argc; ++ cur)
@@ -248,7 +258,6 @@ std::string WriteInputFile(std::ostream& tempFile, const std::string& inputFile)
     std::string result(filePath.begin(), filePath.end());
     llvm::sys::path::convert_to_slash(result, llvm::sys::path::Style::posix);
     tempFile << "#include \"" << result << "\"\n";
-    std::cout << "#include \"" << result << "\"\n";
 
     return result;
 }
@@ -265,25 +274,30 @@ int main(int argc, const char** argv)
     std::string inputFileName;
     PrepareCommandLine(argc, argv, clArgs, inputFileName);
 
-    std::cout << "Command line params:" << std::endl;
-    for (auto& opt : clArgs)
-    {
-        std::cout << "\t" << opt << std::endl;
-    }
     int argsCount = clArgs.size();
     CommonOptionsParser optionsParser(argsCount, &clArgs[0], CodeGenCategory);
     ClangTool tool(optionsParser.getCompilations(), optionsParser.getSourcePathList());
 
     codegen::Options options;
     ParseOptions(options, optionsParser);
+    
+    codegen::ConsoleWriter writer(options.debugMode, &std::cout);
+    options.consoleWriter = &writer;
+    
     if (!ShowClangErrors)
         tool.setDiagnosticConsumer(&diagConsumer);
+
+    writer.DebugStream() << "Command line params:" << std::endl;
+    for (auto& opt : clArgs)
+    {
+        writer.DebugStream() << "\t" << opt << std::endl;
+    }
 
     auto genFactory = std::find_if(begin(GenFactories), end(GenFactories), [type = options.generatorType](auto& p) {return p.first == type && p.second != nullptr;});
 
     if(genFactory == end(GenFactories))
     {
-        std::cerr << "Generator is not defined for generation mode '" << GenerationMode.ValueStr.str() << "'" << std::endl;
+        writer.ConsoleStream(codegen::MessageType::Fatal) << "Generator is not defined for generation mode '" << GenerationMode.ValueStr.str() << "'" << std::endl;
         return -1;
     }
 
@@ -291,7 +305,7 @@ int main(int argc, const char** argv)
 
     if (!generator)
     {
-        std::cerr << "Failed to create generator for generation mode '" << GenerationMode.ValueStr.str() << "'" << std::endl;
+        writer.ConsoleStream(codegen::MessageType::Fatal) << "Failed to create generator for generation mode '" << GenerationMode.ValueStr.str() << "'" << std::endl;
         return -1;
     }
 

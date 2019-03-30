@@ -36,9 +36,9 @@ else()
 endif()
 message(STATUS "FlexLib library search path: ${FlexLib_DIR}")
 set (FLEXLIB_INCLUDE_DIR ${FlexLib_DIR}/include)
+set (CODEGEN_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 find_package(GTest)
-find_package(Boost)
 
 message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_ID}")
 message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_VERSION}")
@@ -46,16 +46,19 @@ message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_VERSION}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LLVM_CXXFLAGS}")
 
 CollectSources(Sources Headers ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src)
+CollectSources(PublicSources PublicHeaders ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 set (Boost_USE_STATIC_LIBS ON)
-find_package(Boost REQUIRED COMPONENTS iostreams)
+find_package(Boost REQUIRED COMPONENTS iostreams filesystem system)
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /bigobj")
     message(STATUS "CodeGenerator is compiled with enabled exceptions")
+else()
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-backtrace-limit=0")
 endif()
 
-find_dependency(Threads)
+find_package(Threads)
 
 add_subdirectory(thirdparty)
 
@@ -63,6 +66,7 @@ include_directories(
     SYSTEM
     ${CLANG_INCLUDE_DIRS}
     ${LLVM_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/expected-lite/include
     )
 
 include_directories(
@@ -76,6 +80,7 @@ include_directories(
 add_llvm_executable(${CODEGEN_BIN_NAME}
     ${Sources}
     ${Headers}
+    ${PublicHeaders}
     )
 
 target_compile_options(${CODEGEN_BIN_NAME}
@@ -105,7 +110,7 @@ target_link_libraries(${CODEGEN_BIN_NAME}
     ${EXTRA_LIBS}
     ${Boost_LIBRARIES}
     Threads::Threads
-#    Jinja2CppLight
+    Jinja2Cpp
     )
 
 get_target_property(CODEGEN_COMPILE_OPTIONS ${CODEGEN_BIN_NAME} COMPILE_FLAGS)

@@ -44,20 +44,20 @@ void TestsGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::MatchRe
         if (!IsFromInputFiles(decl->getLocStart(), matchResult.Context) && !IsFromUpdatingFile(decl->getLocStart(), matchResult.Context))
             return;
 
-        reflection::AstReflector reflector(matchResult.Context);
+        reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);
 
         auto ci = reflector.ReflectClass(decl, &m_namespaces);
 
-        std::cout << "### Declaration of class for test found: " << ci->GetFullQualifiedName(false) << std::endl;
-        std::cout << "### Methods found: " << std::endl;
+        dbg() << "### Declaration of class for test found: " << ci->GetFullQualifiedName() << std::endl;
+        dbg() << "### Methods found: " << std::endl;
         for (auto& methodInfo : ci->methods)
         {
-            std::cout << "###\tMethod: " << methodInfo->GetFullQualifiedName() << std::endl;
-            std::cout << "###\tParams:" << std::endl;
+            dbg() << "###\tMethod: " << methodInfo->GetFullQualifiedName() << std::endl;
+            dbg() << "###\tParams:" << std::endl;
             for (auto& paramInfo : methodInfo->params)
-                std::cout << "###\t\t" << paramInfo.fullDecl << std::endl;
+                dbg() << "###\t\t" << paramInfo.fullDecl << std::endl;
         }
-        std::cout << "### --- found methods end" << std::endl;
+        dbg() << "### --- found methods end" << std::endl;
     }
 }
 
@@ -217,7 +217,7 @@ void TestsGenerator::WriteCtorTestCases(CppSourceStream& os, reflection::ClassIn
 
     if (generator == nullptr)
     {
-        os << out::new_line(1) << "// No generator for " << methodInfo->GetFullQualifiedName(false);
+        os << out::new_line << "// No generator for " << methodInfo->GetFullQualifiedName();
         return;
     }
 

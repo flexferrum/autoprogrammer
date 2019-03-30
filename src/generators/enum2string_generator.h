@@ -3,6 +3,7 @@
 
 #include "basic_generator.h"
 #include "decls_reflection.h"
+#include <jinja2cpp/template.h>
 
 namespace codegen
 {
@@ -22,12 +23,11 @@ protected:
     void WriteHeaderPostamble(CppSourceStream &hdrOs) override;
 
 private:
-
-    void WriteEnumToStringConversion(CppSourceStream &hdrOs, const reflection::EnumInfoPtr& enumDescr);
-    void WriteEnumFromStringConversion(CppSourceStream &hdrOs, const reflection::EnumInfoPtr& enumDescr);
-
-private:
     reflection::NamespacesTree m_namespaces;
+    jinja2::Template m_headerPreambleTpl;
+    jinja2::Template m_convertersTpl;
+    jinja2::Template m_flConverterInvokers;
+    jinja2::Template m_stdConverterInvokers;
 };
 } // codegen
 
