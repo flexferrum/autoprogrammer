@@ -191,6 +191,15 @@ public:
         return true;
     }
 
+    bool VisitDecltypeType(const clang::DecltypeType* tp)
+    {
+        DecltypeType result;
+        result.declType = tp;
+        result.declTypeExpr = tp->getUnderlyingExpr();
+        m_targetType->m_type = result;
+        return true;
+    }
+
     bool VisitTemplateSpecializationType(const clang::TemplateSpecializationType* tp)
     {
         WellKnownType result;

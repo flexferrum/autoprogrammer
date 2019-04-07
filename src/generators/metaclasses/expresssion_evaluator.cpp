@@ -1,11 +1,15 @@
 #include "expresssion_evaluator.h"
 #include "value_ops.h"
+#include "reflected_range.h"
+#include "../../type_info.h"
 
 #include <clang/AST/Decl.h>
+#include <clang/AST/DeclTemplate.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Expr.h>
 #include <clang/AST/ExprCXX.h>
 #include <clang/AST/Attr.h>
+#include <clang/AST/TemplateBase.h>
 
 #include <iostream>
 
@@ -45,6 +49,70 @@ void ExpressionEvaluator::VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr*
     vScope.Submit(std::move(result));
 }
 
+void ExtractTemplateTypeArgs(const ArrayRef<TemplateArgument>& args, std::vector<reflection::TypeInfoPtr>& types, const clang::ASTContext* astContext)
+{
+    for (const clang::TemplateArgument& tplArg : args)
+    {
+        auto argKind = tplArg.getKind();
+        if (argKind == TemplateArgument::Pack)
+            ExtractTemplateTypeArgs(tplArg.getPackAsArray(), types, astContext);
+        else if (argKind == TemplateArgument::Type)
+        {
+            auto typeInfo = reflection::TypeInfo::Create(tplArg.getAsType(), astContext);
+            types.push_back(typeInfo);
+        }
+    }
+}
+
+void ExpressionEvaluator::VisitCallExpr(const CallExpr* expr)
+{
+    VisitorScope vScope(this, "VisitCallExpr");
+
+    const clang::FunctionDecl* function = expr->getDirectCallee();
+    m_evalResult = false;
+
+    if (!function)
+        return;
+
+    std::string fnName = function->getQualifiedNameAsString();
+    dbg() << "[ExpressionEvaluator] Call function '" << fnName << "'" << std::endl;
+
+    Value result;
+    if (fnName == "meta::reflect_type")
+    {
+        const clang::TemplateArgumentList* tplArgs = function->getTemplateSpecializationArgs();
+        if (tplArgs == nullptr)
+        {
+            dbg() << "[ExpressionEvaluator] Template arguments list empty for meta::reflect_type" << std::endl;
+            return;
+        }
+
+        std::vector<reflection::TypeInfoPtr> types;
+        ExtractTemplateTypeArgs(tplArgs->asArray(), types, m_interpreter->m_astContext);
+        dbg() << "[ExpressionEvaluator] Template arguments:" << std::endl;
+        for (auto& arg : types)
+            dbg() << "[ExpressionEvaluator] \t" << arg << std::endl;
+
+        auto range = MakeStdCollectionRefRange(std::move(types));
+        result = Value(ReflectedObject(range));
+        m_evalResult = true;
+        vScope.Submit(std::move(result));
+    }
+    else if (fnName == "meta::project_type")
+    {
+        std::vector<Value> args;
+        Value result;
+        if (CalculateCallArgs(expr->getArgs(), expr->getNumArgs(), args))
+        {
+            result = args[0];
+            m_evalResult = true;
+            vScope.Submit(std::move(result));
+        }
+    }
+
+    // function->dump();
+}
+
 void ExpressionEvaluator::VisitCXXConstructExpr(const clang::CXXConstructExpr* expr)
 {
     VisitorScope vScope(this, "VisitCXXConstructExpr");
@@ -66,6 +134,7 @@ void ExpressionEvaluator::VisitCXXConstructExpr(const clang::CXXConstructExpr* e
             result.AssignValue(std::move(args[0]));
         }
 
+        m_evalResult = true;
     }
     else
     {
@@ -110,6 +179,7 @@ void ExpressionEvaluator::VisitDeclRefExpr(const clang::DeclRefExpr* expr)
         return;
     }
 
+    m_evalResult = true;
     vScope.Submit(std::move(res.value()));
 }
 
@@ -120,6 +190,7 @@ void ExpressionEvaluator::VisitImplicitCastExpr(const clang::ImplicitCastExpr* e
     if (!EvalSubexpr(expr->getSubExpr(), srcVal))
         return;
 
+    m_evalResult = true;
     vScope.Submit(std::move(srcVal));
 }
 
@@ -130,6 +201,7 @@ void ExpressionEvaluator::VisitStringLiteral(const clang::StringLiteral* expr)
 
     dbg() << "String literal found: '" << expr->getString().str() << "'" << std::endl;
 
+    m_evalResult = true;
     vScope.Submit(std::move(val));
 }
 
@@ -140,6 +212,7 @@ void ExpressionEvaluator::VisitCXXBoolLiteralExpr(const clang::CXXBoolLiteralExp
 
     dbg() << "Bool literal found: '" << (expr->getValue() ? "true" : "false") << "'" << std::endl;
 
+    m_evalResult = true;
     vScope.Submit(std::move(val));
 }
 
@@ -151,6 +224,7 @@ void ExpressionEvaluator::VisitExprWithCleanups(const clang::ExprWithCleanups* e
     if (!EvalSubexpr(expr->getSubExpr(), val))
         return;
 
+    m_evalResult = true;
     vScope.Submit(std::move(val));
 }
 
@@ -163,6 +237,7 @@ void ExpressionEvaluator::VisitMaterializeTemporaryExpr(const clang::Materialize
     if (!EvalSubexpr(expr->GetTemporaryExpr(), val))
         return;
 
+    m_evalResult = true;
     vScope.Submit(std::move(val));
 }
 
@@ -213,6 +288,7 @@ void ExpressionEvaluator::VisitBinaryOperator(const clang::BinaryOperator* expr)
         assert(false); // TODO: !!!!
     }
 
+    m_evalResult = true;
     vScope.Submit(std::move(result));
 }
 
@@ -237,6 +313,7 @@ void ExpressionEvaluator::VisitUnaryOperator(const clang::UnaryOperator* expr)
         assert(false); // TODO: !!!
     }
 
+    m_evalResult = true;
     vScope.Submit(std::move(result));
 }
 
@@ -249,6 +326,7 @@ void ExpressionEvaluator::VisitParenExpr(const ParenExpr* expr)
     if (!EvalSubexpr(expr->getSubExpr(), val))
         return;
 
+    m_evalResult = true;
     vScope.Submit(std::move(val));
     // dbg() << "[ExpressionEvaluator] Unary operator found: '" << UnaryOperator::getOpcodeStr(expr->getOpcode()).str() << "'" << std::endl;
 

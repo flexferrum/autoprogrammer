@@ -515,6 +515,17 @@ struct TypeReflection<reflection::EnumType>
     }
 };
 template <>
+struct TypeReflection<reflection::DecltypeType>
+        : TypeReflected<reflection::DecltypeType> {
+    static auto &GetAccessors() {
+        static std::unordered_map<std::string, FieldAccessor> accessors = {
+            {"isDecltypeType", [](const reflection::DecltypeType&) { return true; }}
+        };
+
+        return accessors;
+    }
+};
+template <>
 struct TypeReflection<reflection::TemplateParamType>
         : TypeReflected<reflection::TemplateParamType> {
     static auto &GetAccessors() {

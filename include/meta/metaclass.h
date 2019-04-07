@@ -138,6 +138,8 @@ public:
 
     Range<MemberInfo>& variables() const;
     Range<MethodInfo>& functions() const;
+    template<typename T>
+    void add(T entity, AccessType access = AccessType::Unspecified);
 };
 
 namespace detail
@@ -150,53 +152,62 @@ class MetaClassImplBase
 {
 };
 
+template<typename T>
+struct TypeProjector
+{
+    using type = T;
+};
+
 } // detail
+
+using MetaclassMethodPtr = void (*)(ClassInfo dst, const ClassInfo& src);
+extern CompilerImpl compiler;
 
 template<typename T>
 T& project(T&& val);
 
+template<typename T>
+detail::TypeProjector<T> project_type(T&&);
+
 TypeInfo template_type(std::string name);
+
+template<typename T>
+TypeInfo& reflect_type();
+
+template<typename ... T>
+Range<TypeInfo>& reflect_type();
 } // meta
 
-#define METACLASS_DECL(ClassName) \
-struct MetaClass_##ClassName : public meta::detail::MetaClassBase \
-{ \
-    static meta::CompilerImpl& compiler; \
-    static meta::ClassInfo& $##ClassName; \
-    \
-    struct ClassName; \
-}; \
-struct ClassName##_Meta; \
-struct MetaClass_##ClassName::ClassName
-
-#define METACLASS_INST_IMPL(InstClassName, MetaName, ClassType) \
+#define METACLASS_INST_IMPL(InstClassName, ClassType, ...) \
 struct MetaClassInstance_##InstClassName : public meta::detail::MetaClassImplBase \
 { \
-    using Metaclass = MetaName##_Meta; \
+    static constexpr std::initializer_list<meta::MetaclassMethodPtr> metaPtrList_ = {__VA_ARGS__}; \
     class InstClassName; \
 }; \
 \
 ClassType MetaClassInstance_##InstClassName::InstClassName
 
-#define METACLASS_INST(InstClassName, MetaName) METACLASS_INST_IMPL(InstClassName, MetaName, class)
+#define METACLASS_INST(InstClassName, MetaName) METACLASS_INST_IMPL(InstClassName, class, MetaName)
 
 #ifdef FL_CODEGEN_INVOKED_
 #define META_CONSTEXPR [[gsl::suppress("constexpr")]]
-#define META_INJECT(vis) [[gsl::suppress("inject", #vis)]]
+#define META_INJECT(target, vis) [[gsl::suppress("inject", "$target=" #target, #vis)]]
 #define META_ENUM()
 #else
 #define META_CONSTEXPR
-#define META_INJECT(vis)
+#define META_INJECT(target, vis)
 #define META_ENUM()
 #endif
 
 #define $_metaclass(N) METACLASS_DECL(N)
-#define $_class(N1, N2) METACLASS_INST_IMPL(N1, N2, class)
-#define $_struct(N1, N2) METACLASS_INST_IMPL(N1, N2, struct)
-#define $_inject(V) META_INJECT(V)
+#define $_class(N1, ...) METACLASS_INST_IMPL(N1, class, __VA_ARGS__)
+#define $_struct(N1, ...) METACLASS_INST_IMPL(N1, struct, __VA_ARGS__)
+#define $_inject_v(T, V) META_INJECT(T, V)
+#define $_inject(T) META_INJECT(T, "")
 #define $_constexpr META_CONSTEXPR
-#define $_t(v) decltype(v)
+#define $_t(v) decltype(meta::project_type(v))
 #define $_v(v) meta::project(v)
+#define t_$(v) meta::reflect_type<v>()
 #define $_str(str) meta::project(#str)
 
 #endif // INCLUDE_META_METACLASS_H

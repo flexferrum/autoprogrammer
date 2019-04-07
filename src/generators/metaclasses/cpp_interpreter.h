@@ -12,7 +12,7 @@ public:
     CppInterpreter(const clang::ASTContext* astContext, IDiagnosticReporter* diagReporter);
     ~CppInterpreter();
 
-    void Execute(reflection::ClassInfoPtr metaclass, reflection::ClassInfoPtr inst, reflection::MethodInfoPtr generator);
+    void Execute(reflection::MethodInfoPtr generator, reflection::ClassInfoPtr dst, reflection::ClassInfoPtr src);
 
 private:
     const clang::ASTContext* m_astContext = nullptr;

@@ -174,6 +174,51 @@ inline std::string Value::ToString() const
     return boost::apply_visitor(detail::ValueToString(), m_value);
 }
 
+inline Value* GetActualValue(Value& val)
+{
+    Value::Ptr* ptr;
+    if (!(ptr = boost::get<Value::InternalRef>(&val.GetValue())))
+    {
+        if ((ptr = boost::get<Value::Reference>(&val.GetValue())))
+        {
+            ptr = boost::get<Value::Pointer>(&val.GetValue());
+        }
+    }
+
+    return ptr == nullptr ? &val : ptr->pointee;
+}
+
+inline const Value* GetActualValue(const Value& val)
+{
+    const Value::Ptr* ptr;
+    if (!(ptr = boost::get<Value::InternalRef>(&val.GetValue())))
+    {
+        if ((ptr = boost::get<Value::Reference>(&val.GetValue())))
+        {
+            ptr = boost::get<Value::Pointer>(&val.GetValue());
+        }
+    }
+
+    return ptr == nullptr ? &val : ptr->pointee;
+}
+
+template<typename Fn, typename Value>
+auto ApplyUnwrapped(Value&& val, Fn&& fn)
+{
+    auto actualVal = GetActualValue(val);
+
+    auto reflObj = boost::get<ReflectedObject>(&actualVal->GetValue());
+
+    if (reflObj != nullptr)
+        return fn(reflObj->GetValue());
+//    else if (targetString != nullptr)
+//        return fn(*actualVal);
+//    else if (internalValueRef != nullptr)
+//        return fn(internalValueRef->get());
+
+    return fn(actualVal->GetValue());
+}
+
 } // interpreter
 } // codegen
 

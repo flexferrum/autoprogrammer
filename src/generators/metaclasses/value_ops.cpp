@@ -15,50 +15,6 @@ namespace interpreter
 
 namespace value_ops
 {
-Value* GetActualValue(Value& val)
-{
-    Value::Ptr* ptr;
-    if (!(ptr = boost::get<Value::InternalRef>(&val.GetValue())))
-    {
-        if ((ptr = boost::get<Value::Reference>(&val.GetValue())))
-        {
-            ptr = boost::get<Value::Pointer>(&val.GetValue());
-        }
-    }
-
-    return ptr == nullptr ? &val : ptr->pointee;
-}
-
-const Value* GetActualValue(const Value& val)
-{
-    const Value::Ptr* ptr;
-    if (!(ptr = boost::get<Value::InternalRef>(&val.GetValue())))
-    {
-        if ((ptr = boost::get<Value::Reference>(&val.GetValue())))
-        {
-            ptr = boost::get<Value::Pointer>(&val.GetValue());
-        }
-    }
-
-    return ptr == nullptr ? &val : ptr->pointee;
-}
-
-template<typename Fn, typename Value>
-auto ApplyUnwrapped(Value&& val, Fn&& fn)
-{
-    auto actualVal = GetActualValue(val);
-
-    auto reflObj = boost::get<ReflectedObject>(&actualVal->GetValue());
-
-    if (reflObj != nullptr)
-        return fn(reflObj->GetValue());
-//    else if (targetString != nullptr)
-//        return fn(*actualVal);
-//    else if (internalValueRef != nullptr)
-//        return fn(internalValueRef->get());
-
-    return fn(actualVal->GetValue());
-}
 
 template<typename V, typename Value, typename ... Args>
 auto Apply(Value&& val, Args&& ... args)
@@ -173,6 +129,7 @@ bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethod
         {"meta::CompilerImpl::require/void require(bool, const char *message)"s, thunkMaker(&ReflectedMethods::Compiler_require)},
         {"meta::ClassInfo::variables/Range<meta::MemberInfo> &variables() const"s, thunkMaker(&ReflectedMethods::ClassInfo_variables)},
         {"meta::ClassInfo::functions/Range<meta::MethodInfo> &functions() const"s, thunkMaker(&ReflectedMethods::ClassInfo_functions)},
+        {"meta::ClassInfo::add/template<> void add<meta::MethodInfo>(meta::MethodInfo entity, meta::AccessType access = AccessType::Unspecified)"s, thunkMaker(&ReflectedMethods::ClassInfo_addMethod)},
         {"meta::Range<meta::MemberInfo>::empty/bool empty() const"s, thunkMaker(&ReflectedMethods::RangeT_empty)},
         {"meta::Range<meta::MethodInfo>::begin/meta::Range<meta::MethodInfo>::iterator begin()"s, thunkMaker(&ReflectedMethods::RangeT_begin)},
         {"meta::Range<meta::MethodInfo>::end/meta::Range<meta::MethodInfo>::iterator end()"s, thunkMaker(&ReflectedMethods::RangeT_end)},
@@ -184,6 +141,11 @@ bool CallMember(InterpreterImpl* interpreter, Value& obj, const clang::CXXMethod
         {"meta::Range<meta::MemberInfo>::iterator::operator!=/bool operator!=(const meta::Range<meta::MemberInfo>::iterator &) const"s, thunkMaker(&ReflectedMethods::IteratorT_OperNotEqual_Same)},
         {"meta::Range<meta::MemberInfo>::iterator::operator*/meta::MemberInfo &operator*()"s, thunkMaker(&ReflectedMethods::IteratorT_OperStar)},
         {"meta::Range<meta::MemberInfo>::iterator::operator++/meta::Range<meta::MemberInfo>::iterator &operator++()"s, thunkMaker(&ReflectedMethods::IteratorT_OperPrefixInc)},
+        {"meta::Range<meta::TypeInfo>::begin/meta::Range<meta::TypeInfo>::iterator begin()"s, thunkMaker(&ReflectedMethods::RangeT_begin)},
+        {"meta::Range<meta::TypeInfo>::end/meta::Range<meta::TypeInfo>::iterator end()"s, thunkMaker(&ReflectedMethods::RangeT_end)},
+        {"meta::Range<meta::TypeInfo>::iterator::operator!=/bool operator!=(const meta::Range<meta::TypeInfo>::iterator &) const"s, thunkMaker(&ReflectedMethods::IteratorT_OperNotEqual_Same)},
+        {"meta::Range<meta::TypeInfo>::iterator::operator*/meta::TypeInfo &operator*()"s, thunkMaker(&ReflectedMethods::IteratorT_OperStar)},
+        {"meta::Range<meta::TypeInfo>::iterator::operator++/meta::Range<meta::TypeInfo>::iterator &operator++()"s, thunkMaker(&ReflectedMethods::IteratorT_OperPrefixInc)},
         {"meta::ClassMemberBase::is_public/bool is_public() const"s, thunkMaker(&ReflectedMethods::MethodInfo_is_public)},
         {"meta::ClassMemberBase::has_access/bool has_access() const"s, thunkMaker(&ReflectedMethods::ClassMemberBase_has_access)},
         {"meta::ClassMemberBase::make_public/void make_public()"s, thunkMaker(&ReflectedMethods::ClassMemberBase_make_public)},

@@ -133,10 +133,16 @@ struct EnumType
     const clang::EnumDecl* decl;
 };
 
+struct DecltypeType
+{
+    const clang::DecltypeType* declType;
+    const clang::Expr* declTypeExpr;
+};
+
 class TypeInfo
 {
 public:
-    using Type = boost::variant<NoType, BuiltinType, RecordType, TemplateType, WellKnownType, ArrayType, EnumType, TemplateParamType>;
+    using Type = boost::variant<NoType, BuiltinType, RecordType, TemplateType, WellKnownType, ArrayType, EnumType, DecltypeType, TemplateParamType>;
 
     struct TypeDescr
     {
@@ -177,6 +183,10 @@ public:
     auto getAsEnumType() const
     {
         return boost::get<const EnumType>(&m_type);
+    }
+    auto getAsDecltypeType() const
+    {
+        return boost::get<const DecltypeType>(&m_type);
     }
     auto getAsTemplateParamType() const
     {
@@ -237,6 +247,7 @@ public:
             bool operator() (const BuiltinType&) const {return false;}
             bool operator() (const ArrayType&) const {return false;}
             bool operator() (const EnumType&) const {return false;}
+            bool operator() (const DecltypeType&) const {return false;}
             bool operator() (const TemplateParamType&) const {return true;}
 
             bool operator() (const RecordType&) const
@@ -369,6 +380,12 @@ inline std::ostream& operator << (std::ostream& os, const ArrayType& tp)
 inline std::ostream& operator << (std::ostream& os, const EnumType& tp)
 {
     os << "ENUM[" << tp.decl->getQualifiedNameAsString() << "]";
+    return os;
+}
+
+inline std::ostream& operator << (std::ostream& os, const DecltypeType& tp)
+{
+    os << "DECLTYPE[]";
     return os;
 }
 

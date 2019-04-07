@@ -14,6 +14,7 @@
 #include <clang/AST/APValue.h>
 
 #include <nonstd/expected.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include <stack>
 #include <unordered_map>
@@ -77,24 +78,24 @@ private:
 
 struct CodeInjectionContext
 {
-    virtual void InjectMethodDecl(reflection::MethodInfoPtr methodInfo, const std::string& visibility) = 0;
-    virtual void InjectCodeFragment(const std::string& fragment, const std::string& visibility) = 0;
+    virtual void InjectMethodDecl(reflection::MethodInfoPtr methodInfo, /*const std::string& target, */const std::string& visibility) = 0;
+    virtual void InjectCodeFragment(const std::string& fragment, /*const std::string& target, */const std::string& visibility) = 0;
+    virtual void InjectObject(const ReflectedObject& object, const std::string& visibility) = 0;
 };
 
-class InterpreterImpl : public CodeInjectionContext
+class InterpreterImpl
 {
 public:
-    InterpreterImpl(const clang::ASTContext* astContext, IDiagnosticReporter* diagReporter, reflection::ClassInfoPtr metaclass, reflection::ClassInfoPtr inst)
+    InterpreterImpl(const clang::ASTContext* astContext, IDiagnosticReporter* diagReporter, reflection::ClassInfoPtr dstInst, reflection::ClassInfoPtr srcInst)
         : m_astContext(astContext)
         , m_diagReporter(diagReporter)
-        , m_metaclass(metaclass)
-        , m_instance(inst)
+        , m_srcInstance(srcInst)
+        , m_dstInstance(dstInst)
     {
         m_scopes.m_visibleDecls = &m_visibleDecls;
-        m_injectionContextStack.push(this);
     }
 
-    void ExecuteMethod(const clang::CXXMethodDecl* method);
+    void ExecuteMetaclassMethod(const clang::FunctionDecl* method);
     bool Report(MessageType type, const clang::SourceLocation& loc, std::string message);
     auto& dbg() {return m_diagReporter->GetDebugStream();}
     clang::PrintingPolicy GetDefaultPrintingPolicy();
@@ -126,13 +127,19 @@ private:
     bool ExecuteAsBooleanCondition(const clang::Expr* expr, bool& result);
     bool ExecuteVarDecl(const clang::VarDecl *decl);
     bool ExecuteDecl(const clang::Decl *decl);
-    void InjectStatement(const clang::Stmt* stmt, const std::string& visibility, bool isInitial);
-    void InjectMethod(const clang::LambdaExpr* le, const std::string& visibility);
+    void InjectStatement(const clang::Stmt* stmt, const std::string& target, const std::string& visibility, bool isInitial);
+    void InjectMethod(const clang::LambdaExpr* le, const std::string& target, const std::string& visibility);
+    void InjectObject(const Value& v, const std::string& target, const std::string& visibility);
+    void InjectDeclaration(const clang::Stmt* stmt, const std::string& target, const std::string& visibility);
     std::string RenderInjectedConstexpr(const clang::Stmt* stmt);
 
-    void InjectMethodDecl(reflection::MethodInfoPtr methodInfo, const std::string& visibility) override;
-    void InjectCodeFragment(const std::string& fragment, const std::string& visibility) override;
-    
+    void InjectMethodDecl(reflection::MethodInfoPtr methodInfo, reflection::ClassInfoPtr targetClass, const std::string& visibility);
+    void InjectCodeFragment(const std::string& fragment, reflection::ClassInfoPtr targetClass, const std::string& visibility);
+    void InjectObjectInst(const ReflectedObject& obj, reflection::ClassInfoPtr targetClass, const std::string& visibility);
+
+    void AdjustMethodParams(reflection::MethodInfoPtr methodDecl);
+    reflection::TypeInfo::TypeDescr GetProjectedTypeName(const reflection::DecltypeType* type, const reflection::TypeInfo::TypeDescr& origTypeDescr);
+
     ScopeStack::DeclInfo* CreateLocalVar(const clang::VarDecl *decl);
 
     nonstd::expected<Value, std::string> GetDeclReference(const clang::NamedDecl* decl);
@@ -144,15 +151,19 @@ private:
 
     const clang::ASTContext* m_astContext;
     IDiagnosticReporter* m_diagReporter;
-    reflection::ClassInfoPtr m_metaclass;
-    reflection::ClassInfoPtr m_instance;
+    reflection::ClassInfoPtr m_srcInstance;
+    reflection::ClassInfoPtr m_dstInstance;
+    const clang::VarDecl* m_srcInstVarDecl = nullptr;
+    const clang::VarDecl* m_dstInstVarDecl = nullptr;
     ScopeStack m_scopes;
     std::unordered_map<const clang::NamedDecl*, Value::InternalRef> m_visibleDecls;
     std::unordered_map<std::string, Value> m_globalVars;
     std::stack<CodeInjectionContext*> m_injectionContextStack;
+    std::stack<const clang::DeclContext*> m_declContextStack;
 
     friend class ExpressionEvaluator;
     friend class InjectedCodeRenderer;
+    friend class DeclInjectionContext;
 };
 
 struct Attributes
@@ -160,6 +171,7 @@ struct Attributes
     bool doInject = false;
     bool isConstexpr = false;
     std::string visibility = "default";
+    std::string targetName = "";
 };
 
 inline Attributes GetStatementAttrs(const clang::AttributedStmt* stmt)
@@ -175,9 +187,14 @@ inline Attributes GetStatementAttrs(const clang::AttributedStmt* stmt)
         for (const clang::StringRef& id : suppAttr->diagnosticIdentifiers())
         {
             std::string idStr = id.str();
+            static const auto targetPrefix = "$target=";
             if (idStr == "inject")
             {
                 result.doInject = true;
+            }
+            else if (result.doInject && boost::algorithm::starts_with(idStr, targetPrefix))
+            {
+                result.targetName = idStr.substr(sizeof(targetPrefix));
             }
             else if (idStr == "constexpr")
             {

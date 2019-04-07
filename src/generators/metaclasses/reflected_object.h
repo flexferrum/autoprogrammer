@@ -47,7 +47,14 @@ using IteratorTPtr = std::shared_ptr<IteratorT>;
 class ReflectedObject
 {
 public:
-    using DataType = boost::variant<Compiler, reflection::ClassInfoPtr, reflection::MethodInfoPtr, reflection::MemberInfoPtr, RangeTPtr, IteratorTPtr>;
+    using DataType = boost::variant<
+                Compiler,
+                reflection::ClassInfoPtr,
+                reflection::MethodInfoPtr,
+                reflection::MemberInfoPtr,
+                reflection::TypeInfoPtr,
+                RangeTPtr,
+                IteratorTPtr>;
 
     ReflectedObject(DataType = DataType());
 
@@ -82,6 +89,7 @@ public:
 
     static bool ClassInfo_variables(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result);
     static bool ClassInfo_functions(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result);
+    static bool ClassInfo_addMethod(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, reflection::MethodInfoPtr method, Value& result);
 
     static bool MethodInfo_is_public(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
     static bool ClassMemberBase_has_access(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);

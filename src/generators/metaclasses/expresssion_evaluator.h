@@ -19,6 +19,7 @@ public:
     ExpressionEvaluator(InterpreterImpl* interpreter, Value& result, bool& isOk);
 
     void VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr* expr);
+    void VisitCallExpr(const clang::CallExpr* expr);
     void VisitCXXConstructExpr(const clang::CXXConstructExpr* expr);
     void VisitCXXOperatorCallExpr(const clang::CXXOperatorCallExpr* expr);
     void VisitDeclRefExpr(const clang::DeclRefExpr* expr);

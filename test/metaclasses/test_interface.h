@@ -7,69 +7,84 @@
 #include <utility>
 
 // 'Interface' metaclass declaration
-METACLASS_DECL(Interface)
+template<typename V>
+void Visitable(meta::ClassInfo dst, const meta::ClassInfo& src)
 {
-    static void GenerateDecl()
+    using meta::compiler;
+
+//    compiler.message("Hello world from metaprogrammer! (1)");
+
+    for (auto& f : src.functions())
+        $_inject_v(dst, public) f;
+
+    // $_inject(dst) [name="Visit", is_const=true](const V* v) -> void {v->Visit($_str(*this));};
+    $_inject_v(dst, public) { void Visit(const Visitor*); }
+}
+
+// Declare template metaclass for visitors across 'Types' list
+template<typename ... Types>
+inline void Visitor(meta::ClassInfo dst, const meta::ClassInfo& src)
+{
+    // Insert all methods form src to dst
+    for (auto& f : src.functions())
+        $_inject_v(dst, public) f;
+
+    // Add extra 'Visit' methods to dst dependent on specific type from 'Types'
+    for (auto& t : t_$(Types ...))
+        $_inject_v(dst, public) { void Visit(const $_t(t)& obj); }
+}
+
+void Interface(meta::ClassInfo dst, const meta::ClassInfo& src)
+{
+    using meta::compiler;
+
+    compiler.message("Hello world from metaprogrammer! (2)");
+    compiler.require(src.variables().empty(), "Interface may not contain data members");
+
+    META_INJECT(dst, public) {
+        enum {InterfaceId = 123456};
+    }
+
+    for (auto& f : src.functions())
     {
-        compiler.message("Hello world from metaprogrammer!");
-        compiler.require($Interface.variables().empty(), "Interface may not contain data members");
+        compiler.require(f.is_implicit() || (!f.is_copy_ctor() && !f.is_move_ctor()),
+            "Interface can't contain copy or move constructor");
 
-        META_INJECT(public) {
-            enum {InterfaceId = 123456};
-        }
-
-        for (auto& f : $Interface.functions())
+        if (!f.is_implicit())
         {
-            compiler.require(f.is_implicit() || (!f.is_copy_ctor() && !f.is_move_ctor()),
-                "Interface can't contain copy or move constructor");
+            f.make_public();
 
-            if (!f.is_implicit())
-            {
-                f.make_public();
+            compiler.require(f.is_public(), "Inteface function must be public");
 
-                compiler.require(f.is_public(), "Inteface function must be public");
+            f.make_pure_virtual();
 
-                f.make_pure_virtual();
-#if 0
-                META_INJECT(public) [name=f.name(), is_virtual=true]($_t(f) fn, $_t(f.return_type())& result) -> int
-                {
-                    try
-                    {
-                        result = fn(fn.params());
-                        return 0;
-                    }
-                    catch (...)
-                    {
-                        return 1;
-                    }
-                };
-#endif
-            }
+            $_inject(dst) f;
         }
     }
-};
+}
 
-METACLASS_INST(TestIface, Interface)
-{
-    void TestMethod1();
-    std::string TestMethod2(int param) const;
-};
-
-#if 0
-METACLASS_INST(Interface, BadTestIface)
+class Visitor
 {
 public:
-    BadTestIface(const BadTestIface&);
+};
 
+struct A
+{
+};
+
+struct B
+{
+};
+
+struct C
+{
+};
+
+$_class(SomeVisitor, Visitor<A, B, C>, Interface)
+{
+public:
     void TestMethod1();
     std::string TestMethod2(int param) const;
-
-protected:
-    void TestMethod3();
-
-private:
-    int m_val;
 };
-#endif
 
 #endif // TEST_ENUMS_H

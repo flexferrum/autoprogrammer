@@ -148,7 +148,7 @@ struct MethodInfo : public NamedDeclInfo
 
     bool isTemplate() const {return !tplParams.empty();}
 
-    const clang::CXXMethodDecl* decl;
+    const clang::FunctionDecl* decl;
 };
 
 using MethodInfoPtr = std::shared_ptr<MethodInfo>;
@@ -159,7 +159,7 @@ struct MemberInfo : public NamedDeclInfo, public LocationInfo
     AccessType accessType = AccessType::Undefined;
     bool isStatic = false;
 
-    const clang::FieldDecl* decl;
+    const clang::DeclaratorDecl* decl;
 };
 
 using MemberInfoPtr = std::shared_ptr<MemberInfo>;

@@ -27,11 +27,10 @@ protected:
 
     struct MetaclassImplInfo
     {
-        reflection::ClassInfoPtr metaclass;
-        reflection::MethodInfoPtr declGenMethod;
-        reflection::MethodInfoPtr defGenMethod;
+        std::vector<reflection::MethodInfoPtr> metaclasses;
         reflection::ClassInfoPtr implDecl;
         reflection::ClassInfoPtr impl;
+        reflection::NamespaceInfoPtr ns;
     };
 
     // BasicGenerator interface
