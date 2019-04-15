@@ -140,6 +140,8 @@ public:
     Range<MethodInfo>& functions() const;
     template<typename T>
     void add(T entity, AccessType access = AccessType::Unspecified);
+
+    TypeInfo add_template_type_param(const char* name);
 };
 
 namespace detail
@@ -152,10 +154,30 @@ class MetaClassImplBase
 {
 };
 
+struct ProjectorBase
+{
+    int member;
+
+    using MemberPtr = int (ProjectorBase::*);
+};
+
 template<typename T>
-struct TypeProjector
+struct Projector : public ProjectorBase
 {
     using type = T;
+
+    template<typename ... Args>
+    Projector<T> operator()(Args&& ... args);
+
+    template<typename R>
+    operator R();
+
+    // Projector<T> operator .*(ProjectorBase::MemberPtr);
+    // Projector<T> operator ->*(ProjectorBase::MemberPtr);
+    template<typename U>
+    Projector<T> $_project_member(U&&);
+
+    Projector<T>* operator ->();
 };
 
 } // detail
@@ -164,10 +186,13 @@ using MetaclassMethodPtr = void (*)(ClassInfo dst, const ClassInfo& src);
 extern CompilerImpl compiler;
 
 template<typename T>
-T& project(T&& val);
+detail::Projector<T> project(T&& val);
 
 template<typename T>
-detail::TypeProjector<T> project_type(T&&);
+detail::Projector<T> project_type(T&&);
+
+template<typename T>
+detail::ProjectorBase::MemberPtr project_member(T&&);
 
 TypeInfo template_type(std::string name);
 
@@ -178,14 +203,24 @@ template<typename ... T>
 Range<TypeInfo>& reflect_type();
 } // meta
 
+#ifdef FL_CODEGEN_INVOKED_
 #define METACLASS_INST_IMPL(InstClassName, ClassType, ...) \
 struct MetaClassInstance_##InstClassName : public meta::detail::MetaClassImplBase \
 { \
     static constexpr std::initializer_list<meta::MetaclassMethodPtr> metaPtrList_ = {__VA_ARGS__}; \
+    ClassType InstClassName; \
+}; \
+\
+ClassType MetaClassInstance_##InstClassName::InstClassName
+#else
+#define METACLASS_INST_IMPL(InstClassName, ClassType, ...) \
+struct MetaClassInstance_##InstClassName : public meta::detail::MetaClassImplBase \
+{ \
     class InstClassName; \
 }; \
 \
 ClassType MetaClassInstance_##InstClassName::InstClassName
+#endif
 
 #define METACLASS_INST(InstClassName, MetaName) METACLASS_INST_IMPL(InstClassName, class, MetaName)
 
@@ -207,6 +242,7 @@ ClassType MetaClassInstance_##InstClassName::InstClassName
 #define $_constexpr META_CONSTEXPR
 #define $_t(v) decltype(meta::project_type(v))
 #define $_v(v) meta::project(v)
+#define $_mem(v) $_project_member(v)
 #define t_$(v) meta::reflect_type<v>()
 #define $_str(str) meta::project(#str)
 

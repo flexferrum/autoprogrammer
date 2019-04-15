@@ -54,6 +54,29 @@ bool ReflectedMethods::ClassInfo_functions(InterpreterImpl* interpreter, reflect
     return true;
 }
 
+bool ReflectedMethods::ClassInfo_add_template_type_param(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result, const std::string& name)
+{
+    reflection::TemplateParamInfo tplParamInfo;
+    tplParamInfo.isParamPack = false;
+    tplParamInfo.tplDeclName = "typename " + name;
+    tplParamInfo.tplRefName = name;
+    tplParamInfo.kind = reflection::TemplateType::TemplateTplArg;
+
+    obj->templateParams.push_back(std::move(tplParamInfo));
+
+    reflection::TypeInfo::TypeDescr descr;
+
+    descr.name = name;
+    reflection::RecordType recType;
+    descr.type = std::move(recType);
+
+    result = Value(ReflectedObject(reflection::TypeInfo::Create(descr)));
+
+    std::cout << "#### Template param '" << name << "' added to the class " << obj->name << std::endl;
+
+    return true;
+}
+
 bool ReflectedMethods::ClassInfo_addMethod(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, reflection::MethodInfoPtr method, Value& result)
 {
     result = Value(VoidValue());

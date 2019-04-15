@@ -225,6 +225,7 @@ struct ClassInfo : public NamedDeclInfo, public LocationInfo
     std::vector<MethodInfoPtr> methods;
     std::vector<InnerDeclInfo> innerDecls;
     std::vector<GenericDeclPart> genericParts;
+    std::vector<TemplateParamInfo> templateParams;
 
     bool isTrivial = false;
     bool isAbstract = false;

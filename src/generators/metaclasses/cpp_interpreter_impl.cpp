@@ -734,6 +734,13 @@ void InterpreterImpl::AdjustMethodParams(reflection::MethodInfoPtr methodDecl)
         p.type = reflection::TypeInfo::Create(descr);
         p.fullDecl = p.type->getPrintedName() + " " + p.name;
     }
+
+    auto returnType = methodDecl->returnType;
+    if (returnType->getAsDecltypeType())
+    {
+        auto descr = returnType->getTypeDescr();
+        methodDecl->returnType = reflection::TypeInfo::Create(GetProjectedTypeName(returnType->getAsDecltypeType(), descr));
+    }
 }
 
 reflection::TypeInfo::TypeDescr InterpreterImpl::GetProjectedTypeName(const reflection::DecltypeType* type, const reflection::TypeInfo::TypeDescr& origTypeDescr)
@@ -753,6 +760,8 @@ reflection::TypeInfo::TypeDescr InterpreterImpl::GetProjectedTypeName(const refl
 
     if (origTypeDescr.isRVReference)
         typeDescr.isRVReference = true;
+
+    typeDescr.pointingLevels += origTypeDescr.pointingLevels;
 
     return typeDescr;
 }
@@ -780,10 +789,15 @@ void InterpreterImpl::InjectMethod(const clang::LambdaExpr* le, const std::strin
 
         std::string varName = varDecl->getName().str();
         dbg() << ">>>\tLambdaCapture name: " << varName << ", isInitializer: " << varDecl->isInitCapture() << std::endl;
-        if (!varDecl->isInitCapture())
-            continue;
-
         auto* initExpr = varDecl->getInit();
+        if (!varDecl->isInitCapture())
+        {
+//            auto var = CreateLocalVar(varDecl);
+//            if (initExpr)
+//                ExecuteExpression(initExpr, var->val);
+            continue;
+        }
+
         Value initVal;
         if (!ExecuteExpression(initExpr, initVal))
             continue;
@@ -854,6 +868,15 @@ nonstd::expected<Value, std::string> InterpreterImpl::GetDeclReference(const cla
     {
         dbg() << "Variable resolved: '" + decl->getNameAsString() + "'" << std::endl;
         return Value(p->second);
+    }
+
+    for (auto& p : m_visibleDecls)
+    {
+        if (p.first->getNameAsString() == decl->getNameAsString())
+        {
+            dbg() << "Variable resolved: '" + decl->getNameAsString() + "'" << std::endl;
+            return Value(p.second);
+        }
     }
 
     Value val;

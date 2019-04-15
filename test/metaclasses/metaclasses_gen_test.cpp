@@ -2,12 +2,31 @@
 #include <flex_lib/detector.h>
 
 #include "test_interface.h"
-//#include <generated/test_interface.meta.h>
+#include <generated/test_interface.meta.h>
 //#include <generated/boost_serialization.meta.h>
 
 #include <array>
 #include <iterator>
 
+class MyVisitor : public SomeVisitor<MyVisitor>
+{
+public:
+    void Visit(const A &obj)
+    {
+        std::cout << "A visited" << std::endl;
+    }
+};
+
+
+void Foo()
+{
+    A a;
+    MyVisitor visitor;
+
+    visitor(a);
+}
+
+#if 0
 class TestIfaceImpl : public TestIface
 {
     // TestIface interface
@@ -25,3 +44,4 @@ std::string TestIfaceImpl::TestMethod2(int) const
     return "Hello World!";
 }
 
+#endif

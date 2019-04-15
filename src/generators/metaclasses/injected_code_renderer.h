@@ -29,10 +29,13 @@ public:
     std::string GetRenderResult();
 
     bool TraverseAttributedStmt(clang::AttributedStmt* stmt);
+    bool VisitCXXMemberCallExpr(clang::CXXMemberCallExpr* expr);
     bool VisitCallExpr(clang::CallExpr* expr);
+    bool VisitCXXStaticCastExpr(clang::CXXStaticCastExpr* stmt);
 
 private:
     void ReplaceStatement(const clang::Stmt* stmt, const std::string& text);
+    void ReplaceRange(clang::SourceLocation locStart, clang::SourceLocation locEnd, const std::string& text);
     static void GetOffsets(InterpreterImpl* i, clang::SourceLocation& start, clang::SourceLocation& end, unsigned& startOff, unsigned& endOff);
 
 private:

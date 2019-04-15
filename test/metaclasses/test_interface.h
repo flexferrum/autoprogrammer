@@ -8,7 +8,7 @@
 
 // 'Interface' metaclass declaration
 template<typename V>
-void Visitable(meta::ClassInfo dst, const meta::ClassInfo& src)
+inline void Visitable(meta::ClassInfo dst, const meta::ClassInfo& src)
 {
     using meta::compiler;
 
@@ -22,7 +22,7 @@ void Visitable(meta::ClassInfo dst, const meta::ClassInfo& src)
 }
 
 // Declare template metaclass for visitors across 'Types' list
-template<typename ... Types>
+template<typename R, typename ... Types>
 inline void Visitor(meta::ClassInfo dst, const meta::ClassInfo& src)
 {
     // Insert all methods form src to dst
@@ -31,10 +31,37 @@ inline void Visitor(meta::ClassInfo dst, const meta::ClassInfo& src)
 
     // Add extra 'Visit' methods to dst dependent on specific type from 'Types'
     for (auto& t : t_$(Types ...))
-        $_inject_v(dst, public) { void Visit(const $_t(t)& obj); }
+        $_inject_v(dst, public) { R Visit(const $_t(t)& obj); }
 }
 
-void Interface(meta::ClassInfo dst, const meta::ClassInfo& src)
+template<typename ... Types>
+inline void CRTPVisitor(meta::ClassInfo dst, const meta::ClassInfo& src)
+{
+    // Add template parameter to the metaclass instance declaration
+    const auto& tplParam = dst.add_template_type_param("Derived");
+
+    // Insert all methods form src to dst
+    for (auto& f : src.functions())
+        $_inject_v(dst, public) f;
+
+    // Inject generic function call operator
+    $_inject_v(dst, public) [name="operator()"](auto&& obj) -> void {
+        $_v("GetDerived")()->$_mem("Visit")(std::forward<$_str(T0)>(obj));
+    };
+
+    // Add extra fallback 'Visit' methods to dst dependent on specific type from 'Types'
+    for (auto& t : t_$(Types ...))
+        $_inject_v(dst, public) [name="Visit"](const $_t(t)& obj) -> void
+        {
+        };
+
+    // Add private 'GetDerived' method which performs the simple static_cast
+    $_inject_v(dst, private) [name="GetDerived"]() -> $_t(tplParam)* {
+        return static_cast<$_t(tplParam)*>($_str(this));
+    };
+}
+
+inline void Interface(meta::ClassInfo dst, const meta::ClassInfo& src)
 {
     using meta::compiler;
 
@@ -80,7 +107,7 @@ struct C
 {
 };
 
-$_class(SomeVisitor, Visitor<A, B, C>, Interface)
+$_class(SomeVisitor, CRTPVisitor<A, B, C>)
 {
 public:
     void TestMethod1();

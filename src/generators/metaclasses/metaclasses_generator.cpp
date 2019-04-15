@@ -43,6 +43,7 @@ R"(
 {% endfor %}
 {% endmacro %}
 
+{% if class.isTemplate %}template< {{class.tplParams | map(attribute='tplDeclName') | join(', ') }} >{% endif %}
 class {{ class.name }}
 {
 public:

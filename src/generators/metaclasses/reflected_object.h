@@ -89,6 +89,7 @@ public:
 
     static bool ClassInfo_variables(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result);
     static bool ClassInfo_functions(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result);
+    static bool ClassInfo_add_template_type_param(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, Value& result, const std::string& name);
     static bool ClassInfo_addMethod(InterpreterImpl* interpreter, reflection::ClassInfoPtr obj, reflection::MethodInfoPtr method, Value& result);
 
     static bool MethodInfo_is_public(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
