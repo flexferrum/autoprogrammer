@@ -337,7 +337,7 @@ inline std::ostream& operator << (std::ostream& os, const NoType& tp)
 
 inline std::ostream& operator << (std::ostream& os, const BuiltinType& tp)
 {
-    os << "BUILTIN[type=" << (int)tp.type << ", bits=" << tp.bits << ", isSigned=" << (int)tp.isSigned << ", kind=" << (int)tp.kind << "]";
+    os << "BUILTIN[type=" << (int)tp.type << ", bits=" << tp.bits << ", isSigned=" << (tp.isSigned == BuiltinType::Signed ? "true" : (tp.isSigned == BuiltinType::Unsigned ? "false" : "nosign")) << ", kind=" << (int)tp.kind << "]";
     return os;
 }
 

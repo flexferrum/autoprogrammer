@@ -90,6 +90,18 @@ inline void Interface(meta::ClassInfo dst, const meta::ClassInfo& src)
     }
 }
 
+inline void BoostSerializable(meta::ClassInfo dst, const meta::ClassInfo& src)
+{
+    for (auto& v : src.variables())
+        $_inject_v(dst, public) v;
+
+    $_inject_v(dst, public) [&, name="serialize"](auto& ar, unsigned int ver) -> void
+    {
+        $_constexpr for (auto& v : src.variables())
+            $_inject(_) ar & $_v(v.name());
+    };
+};
+
 class Visitor
 {
 public:
@@ -107,11 +119,19 @@ struct C
 {
 };
 
-$_class(SomeVisitor, CRTPVisitor<A, B, C>)
+//$_class(SomeVisitor, CRTPVisitor<A, B, C>)
+//{
+//public:
+//    void TestMethod1();
+//    std::string TestMethod2(int param) const;
+//};
+
+$_class(TestStruct, BoostSerializable)
 {
 public:
-    void TestMethod1();
-    std::string TestMethod2(int param) const;
+    int a;
+    std::string b;
+    std::string helloWorld;
 };
 
 #endif // TEST_ENUMS_H

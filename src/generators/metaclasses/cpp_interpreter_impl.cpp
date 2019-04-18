@@ -380,29 +380,41 @@ InterpreterImpl::ExecStatementResult InterpreterImpl::ExecuteAttributedStatement
             }
         }
 
-        if (foundDecl.pointee == nullptr)
+        bool declInjection = true;
+        if (foundDecl.pointee == nullptr && (m_injectionContextStack.empty() || attrs.targetName != "_"))
         {
             dbg() << "Can't find declaration for '" << attrs.targetName << "'" << std::endl;
             return ESR_Failed;
         }
+        else if (foundDecl.pointee == nullptr)
+        {
+            declInjection = false;
+        }
 
-        auto reflObject = boost::get<ReflectedObject>(&foundDecl.pointee->GetValue());
-        if (!reflObject)
+        if (declInjection)
         {
-            dbg() << "'" << attrs.targetName << "' is not an reflected object" << std::endl;
-            return ESR_Failed;
+            auto reflObject = boost::get<ReflectedObject>(&foundDecl.pointee->GetValue());
+            if (!reflObject)
+            {
+                dbg() << "'" << attrs.targetName << "' is not an reflected object" << std::endl;
+                return ESR_Failed;
+            }
+            auto classPtr = boost::get<ClassInfoPtr>(&reflObject->GetValue());
+            if (!classPtr)
+            {
+                dbg() << "'" << attrs.targetName << "' dosn't denote reflected class type" << std::endl;
+                return ESR_Failed;
+            }
+            DeclInjectionContext context(this, *classPtr);
+            m_injectionContextStack.push(&context);
+            dbg() << "!!!!!!! '" << attrs.targetName << "' represents class '" << (*classPtr)->name << "'" << std::endl;
+            InjectStatement(stmt->getSubStmt(), attrs.targetName, attrs.visibility, true);
+            m_injectionContextStack.pop();
         }
-        auto classPtr = boost::get<ClassInfoPtr>(&reflObject->GetValue());
-        if (!classPtr)
+        else
         {
-            dbg() << "'" << attrs.targetName << "' dosn't denote reflected class type" << std::endl;
-            return ESR_Failed;
+            InjectStatement(stmt->getSubStmt(), attrs.targetName, attrs.visibility, true);
         }
-        DeclInjectionContext context(this, *classPtr);
-        m_injectionContextStack.push(&context);
-        dbg() << "!!!!!!! '" << attrs.targetName << "' represents class '" << (*classPtr)->name << "'" << std::endl;
-        InjectStatement(stmt->getSubStmt(), attrs.targetName, attrs.visibility, true);
-        m_injectionContextStack.pop();
         return ESR_Succeeded;
     }
 
@@ -531,6 +543,17 @@ public:
         }
 
         m_target->methods.push_back(m);
+    }
+
+    void operator()(MemberInfoPtr member) const
+    {
+        auto m = std::make_shared<MemberInfo>(*member);
+        if (m_accessType != reflection::AccessType::Undefined)
+        {
+            m->accessType = m_accessType;
+        }
+
+        m_target->members.push_back(m);
     }
 
     template<typename U>
@@ -674,7 +697,7 @@ void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string
             return;
         }
         const clang::Expr* e = dyn_cast_or_null<Expr>(stmt);
-        if (e != nullptr)
+        if (e != nullptr && target != "_")
         {
             Value injectedObj;
             if (ExecuteExpression(e, injectedObj))
@@ -687,7 +710,7 @@ void InterpreterImpl::InjectStatement(const clang::Stmt* stmt, const std::string
 
     // stmt->dump();
 
-    if (m_injectionContextStack.size() == 1 || !target.empty())
+    if (m_injectionContextStack.size() == 1 || target != "_")
     {
         InjectDeclaration(stmt, target, visibility);
     }
