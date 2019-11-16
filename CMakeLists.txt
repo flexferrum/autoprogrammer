@@ -25,7 +25,6 @@ conan_cmake_run(REQUIRES
                 ${CONAN_SETTINGS}
 				GENERATORS 
 					cmake_find_package
-					cmake_paths
                 OPTIONS 
                     jinja2cpp:shared=False
                     gtest:shared=False
@@ -46,7 +45,7 @@ set (FLEXLIB_INCLUDE_DIR ${FlexLib_DIR}/include)
 
 set (CODEGEN_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-find_package(GTest)
+find_package(gtest)
 
 message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_ID}")
 message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_VERSION}")
@@ -121,26 +120,28 @@ target_link_libraries(${CODEGEN_BIN_NAME}
     clangRewrite
 	clangToolingInclusions
     ${EXTRA_LIBS}
-    libboost_iostreams
-	libboost_filesystem
-	libboost_system
+    boost_iostreams
+	boost_filesystem
+	boost_system
     Threads::Threads
     jinja2cpp
     )
 
 get_target_property(CODEGEN_COMPILE_OPTIONS ${CODEGEN_BIN_NAME} COMPILE_FLAGS)
 message (STATUS ">>>>> CODEGEN_COMPILE_OPTIONS (1): ${CODEGEN_COMPILE_OPTIONS}")
-string (REPLACE "-fno-rtti" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
-string (REPLACE "-fno-exceptions" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
-string (REPLACE "/EHs-c-" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
-string (REPLACE "-EHs-c-" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
-string (REPLACE "/GR-" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
-string (REPLACE "-GR-" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
-if (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
-	set(CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS} /W0")
+if (NOT CODEGEN_COMPILE_OPTIONS STREQUAL  "CODEGEN_COMPILE_OPTIONS-NOTFOUND")
+    string (REPLACE "-fno-rtti" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
+    string (REPLACE "-fno-exceptions" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
+    string (REPLACE "/EHs-c-" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
+    string (REPLACE "-EHs-c-" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
+    string (REPLACE "/GR-" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
+    string (REPLACE "-GR-" "" CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS}")
+    if (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
+	   set(CODEGEN_COMPILE_OPTIONS "${CODEGEN_COMPILE_OPTIONS} /W0")
+    endif()
+    set_target_properties(${CODEGEN_BIN_NAME} PROPERTIES COMPILE_FLAGS "${CODEGEN_COMPILE_OPTIONS}")
+    message (STATUS ">>>>> CODEGEN_COMPILE_OPTIONS (2): ${CODEGEN_COMPILE_OPTIONS}")
 endif()
-set_target_properties(${CODEGEN_BIN_NAME} PROPERTIES COMPILE_FLAGS "${CODEGEN_COMPILE_OPTIONS}")
-message (STATUS ">>>>> CODEGEN_COMPILE_OPTIONS (2): ${CODEGEN_COMPILE_OPTIONS}")
 message (STATUS ">>>>> CMAKE_CXX_FLAGS : ${CMAKE_CXX_FLAGS}")
 message (STATUS ">>>>> CMAKE_CXX_FLAGS_RELEASE : ${CMAKE_CXX_FLAGS_RELEASE}")
 message (STATUS ">>>>> CMAKE_CXX_FLAGS_RELWITHDEBINFO : ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")

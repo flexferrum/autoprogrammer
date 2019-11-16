@@ -27,10 +27,10 @@ find_path (
     AddLLVM.cmake
     PATHS ${LLVM_INSTALL_ROOT}
     PATH_SUFFIXES
-        lib/llvm-8.0/cmake/llvm
-        lib/llvm-8.0/cmake
-        lib64/llvm-8.0/cmake/llvm
-        lib64/llvm-8.0/cmake
+        lib/llvm-8/cmake/llvm
+        lib/llvm-8/cmake
+        lib64/llvm-8/cmake/llvm
+        lib64/llvm-8/cmake
         lib/llvm/cmake/llvm
         lib/llvm/cmake
         lib/cmake/llvm
@@ -47,7 +47,7 @@ find_path (
 #    set (LLVM_CONFIG_NAME "llvm-config.exe")
 #else ()
 
-set (LLVM_CONFIG_NAME "llvm-config" "llvm-config-8.0")
+set (LLVM_CONFIG_NAME "llvm-config" "llvm-config-8")
 
 # Taken from CppInsight project by Andreas Fertig
 # https://github.com/andreasfertig/cppinsights/blob/master/CMakeLists.txt
@@ -246,7 +246,7 @@ else ()
 
     macro(add_llvm_executable name)
         add_executable( ${name} ${ARGN} )
-    endmacro(add_clang_executable)
+    endmacro(add_llvm_executable)
     set (EXTRA_LIBS ${LLVM_LDFLAGS} ${EXTRA_LIBS} ${LLVM_LIBS} ${LLVM_SYSTEM_LIBS})
 endif ()
 set (LLVM_CONFIG_HAS_RTTI YES)
