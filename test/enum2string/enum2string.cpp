@@ -32,7 +32,7 @@ TEST(Enum2String, ConvertFromString_Successfull)
 
 TEST(Enum2String, ConvertFromString_Failed)
 {
-    EXPECT_THROW(StringToEnum2("Unspecified Item"), flex_lib::bad_enum_name);
+    EXPECT_THROW(StringToEnum2("Unspecified Item"), std::invalid_argument);
 }
 
 int main(int argc, char* argv[])

@@ -77,7 +77,7 @@ void MetaclassesGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::M
 
     if (const clang::CXXRecordDecl* decl = matchResult.Nodes.getNodeAs<clang::CXXRecordDecl>("MetaclassImpl"))
     {
-        if (IsFromInputFiles(decl->getLocStart(), matchResult.Context))
+        if (IsFromInputFiles(decl->getBeginLoc(), matchResult.Context))
         {
             reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);
 

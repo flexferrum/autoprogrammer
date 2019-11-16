@@ -399,8 +399,8 @@ MethodInfoPtr AstReflector::ReflectMethod(const FunctionDecl* decl, NamespacesTr
     if ((body = decl->getBody()) != nullptr)
     {
         auto& srcMgr = m_astContext->getSourceManager();
-        auto locStart = body->getLocStart();
-        auto locEnd = body->getLocEnd();
+        auto locStart = body->getBeginLoc();
+        auto locEnd = body->getEndLoc();
         auto len = srcMgr.getFileOffset(locEnd) - srcMgr.getFileOffset(locStart);
 
         auto buff = srcMgr.getCharacterData(locStart);

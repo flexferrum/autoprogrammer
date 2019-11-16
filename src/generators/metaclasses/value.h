@@ -71,7 +71,7 @@ public:
 #endif
 
     template<typename U>
-    Value(U&& val)
+    Value(std::enable_if_t<!std::is_same<std::decay_t<U>, Value>::value, U&&> val)
         : m_value(std::move(val))
     {}
 

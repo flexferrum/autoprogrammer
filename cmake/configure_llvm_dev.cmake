@@ -9,9 +9,9 @@ if (NOT LLVM_ROOT)
 endif ()
 
 # prerequirements for UNIX:
-# libclang-5.0-dev
-# llvm-5.0-dev
-# clang-5.0
+# libclang-8-dev
+# llvm-8-dev
+# clang-8
 
 message (STATUS "LLVM_ROOT calculated as '${LLVM_ROOT}'")
 
@@ -27,10 +27,10 @@ find_path (
     AddLLVM.cmake
     PATHS ${LLVM_INSTALL_ROOT}
     PATH_SUFFIXES
-        lib/llvm-5.0/cmake/llvm
-        lib/llvm-5.0/cmake
-        lib64/llvm-5.0/cmake/llvm
-        lib64/llvm-5.0/cmake
+        lib/llvm-8.0/cmake/llvm
+        lib/llvm-8.0/cmake
+        lib64/llvm-8.0/cmake/llvm
+        lib64/llvm-8.0/cmake
         lib/llvm/cmake/llvm
         lib/llvm/cmake
         lib/cmake/llvm
@@ -47,7 +47,7 @@ find_path (
 #    set (LLVM_CONFIG_NAME "llvm-config.exe")
 #else ()
 
-set (LLVM_CONFIG_NAME "llvm-config" "llvm-config-5.0")
+set (LLVM_CONFIG_NAME "llvm-config" "llvm-config-8.0")
 
 # Taken from CppInsight project by Andreas Fertig
 # https://github.com/andreasfertig/cppinsights/blob/master/CMakeLists.txt
@@ -154,12 +154,80 @@ link_directories(${CLANG_LIBRARY_DIRS} ${LLVM_LDFLAGS})
 
 set (LLVM_CONFIG_HAS_RTTI YES)
 
+llvm_config(LLVM_LIBS "--libs")
+llvm_config(LLVM_SYSTEM_LIBS "--system-libs")
+
 if (WIN32 OR WIN64)
     message (STATUS " >>>>>>>> 1111111")
     list (APPEND CMAKE_MODULE_PATH ${LLVM_CMAKE_MODULES})
     include(AddLLVM)
-    include (clang-windows/ClangConfig)
-#    set (EXTRA_LIBS LLVMCore LLVMMC LLVMSupport LLVMOption LLVMAnalysis LLVMBitReader LLVMBitWriter LLVMCore LLVMCoroutines LLVMCoverage LLVMipo LLVMIRReader LLVMInstCombine LLVMInstrumentation LLVMLTO LLVMLinker LLVMMC LLVMObjCARCOpts LLVMObject LLVMPasses LLVMProfileData LLVMScalarOpts LLVMSupport LLVMTarget LLVMTransformUtils)
+#    include (clang-windows/ClangConfig)
+    set (EXTRA_LIBS LLVMLTO 
+LLVMPasses
+LLVMObjCARCOpts
+LLVMSymbolize
+LLVMDebugInfoPDB
+LLVMDebugInfoDWARF
+LLVMFuzzMutate
+LLVMMCA
+LLVMTableGen
+LLVMDlltoolDriver
+LLVMLineEditor
+LLVMXRay
+LLVMOrcJIT
+LLVMCoverage
+LLVMMIRParser
+LLVMObjectYAML
+LLVMLibDriver
+LLVMOption
+LLVMOptRemarks
+LLVMWindowsManifest
+LLVMTextAPI
+LLVMX86Disassembler
+LLVMX86AsmParser
+LLVMX86CodeGen
+LLVMGlobalISel
+LLVMSelectionDAG
+LLVMAsmPrinter
+LLVMX86Desc
+LLVMMCDisassembler
+LLVMX86Info
+LLVMX86AsmPrinter
+LLVMX86Utils
+LLVMMCJIT
+LLVMInterpreter
+LLVMExecutionEngine
+LLVMRuntimeDyld
+LLVMCodeGen
+LLVMTarget
+LLVMCoroutines
+LLVMipo
+LLVMInstrumentation
+LLVMVectorize
+LLVMScalarOpts
+LLVMLinker
+LLVMIRReader
+LLVMAsmParser
+LLVMInstCombine
+LLVMBitWriter
+LLVMAggressiveInstCombine
+LLVMTransformUtils
+LLVMAnalysis
+LLVMProfileData
+LLVMObject
+LLVMMCParser
+LLVMMC
+LLVMDebugInfoCodeView
+LLVMDebugInfoMSF
+LLVMBitReader
+LLVMCore
+LLVMBinaryFormat
+LLVMSupport
+LLVMDemangle
+psapi shell32 ole32 uuid advapi32 version
+)
+#    set (EXTRA_LIBS "${EXTRA_LIBS} ${LLVM_LIBS} ${LLVM_SYSTEM_LIBS
+    message(STATUS ">>>>>>..... ${EXTRA_LIBS}")
 else ()
     message (STATUS " >>>>>>>> 2222222")
     llvm_config(LLVM_CXXFLAGS "--cxxflags")

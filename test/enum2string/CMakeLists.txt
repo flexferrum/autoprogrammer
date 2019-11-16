@@ -33,6 +33,6 @@ add_executable(${PROJECT_NAME}
     ${ENUM_CONV_FILE}
     )
 
-target_link_libraries(${PROJECT_NAME} ${GTEST_BOTH_LIBRARIES} ${EXTRA_TEST_LIBS})
+target_link_libraries(${PROJECT_NAME} gtest::gtest ${EXTRA_TEST_LIBS})
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})

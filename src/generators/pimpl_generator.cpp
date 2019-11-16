@@ -34,7 +34,7 @@ void PimplGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::MatchRe
 {
     if (const clang::CXXRecordDecl* decl = matchResult.Nodes.getNodeAs<clang::CXXRecordDecl>("pimpl"))
     {
-        if (!IsFromInputFiles(decl->getLocStart(), matchResult.Context))
+        if (!IsFromInputFiles(decl->getBeginLoc(), matchResult.Context))
             return;
 
         reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);

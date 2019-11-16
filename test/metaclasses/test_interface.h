@@ -119,19 +119,24 @@ struct C
 {
 };
 
-//$_class(SomeVisitor, CRTPVisitor<A, B, C>)
-//{
-//public:
-//    void TestMethod1();
-//    std::string TestMethod2(int param) const;
-//};
+struct D
+{
+};
+
+$_class(SomeVisitor, CRTPVisitor<A, B, C, D>) // , Interface)
+{
+public:
+    void TestMethod1();
+    std::string TestMethod2(int param) const;
+};
 
 $_class(TestStruct, BoostSerializable)
 {
 public:
     int a;
+    float floatVal;
     std::string b;
-    std::string helloWorld;
+    std::string helloWorld23;
 };
 
 #endif // TEST_ENUMS_H

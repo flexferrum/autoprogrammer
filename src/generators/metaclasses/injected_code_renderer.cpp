@@ -39,7 +39,7 @@ bool InjectedCodeRenderer::VisitCXXMemberCallExpr(clang::CXXMemberCallExpr* expr
         Value member;
         if (m_interpreter->ExecuteExpression(expr->getArg(0), member))
         {
-            ReplaceRange(memExpr->getMemberLoc(), memExpr->getLocEnd(), member.ToString());
+            ReplaceRange(memExpr->getMemberLoc(), memExpr->getEndLoc(), member.ToString());
         }
     }
     // dbg() << "[ExpressionEvaluator] Call method '" << method->getNameAsString() << "' from '" << recName << "'" << std::endl;
@@ -85,8 +85,8 @@ std::string InjectedCodeRenderer::RenderAsSnippet(InterpreterImpl* i, const clan
 {
     std::cout << "####### InjectedCodeRenderer::RenderAsSnippet Invoked" << std::endl;
     auto& srcMgr = i->m_astContext->getSourceManager();
-    auto locStart = stmt->getLocStart();
-    auto locEnd = stmt->getLocEnd();
+    auto locStart = stmt->getBeginLoc();
+    auto locEnd = stmt->getEndLoc();
     unsigned startOffset = 0;
     unsigned endOffset = 0;
     GetOffsets(i, locStart, locEnd, startOffset, endOffset);
@@ -140,8 +140,8 @@ void InjectedCodeRenderer::ReplaceRange(clang::SourceLocation locStart, clang::S
 
 void InjectedCodeRenderer::ReplaceStatement(const clang::Stmt* stmt, const std::string& text)
 {
-    auto locStart = stmt->getLocStart();
-    auto locEnd = stmt->getLocEnd();
+    auto locStart = stmt->getBeginLoc();
+    auto locEnd = stmt->getEndLoc();
     ReplaceRange(locStart, locEnd, text);
 }
 
@@ -152,7 +152,7 @@ void InjectedCodeRenderer::GetOffsets(InterpreterImpl* i, clang::SourceLocation&
     if (srcMgr.isMacroBodyExpansion(start))
         start = srcMgr.getExpansionLoc(start);
     if (srcMgr.isMacroBodyExpansion(end))
-        end = srcMgr.getExpansionRange(end).second;
+        end = srcMgr.getExpansionRange(end).getAsRange().getEnd();
 
     startOff = srcMgr.getFileOffset(start);
     endOff = srcMgr.getFileOffset(end) + 1;

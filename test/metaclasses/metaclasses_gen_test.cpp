@@ -15,15 +15,18 @@ public:
     {
         std::cout << "A visited" << std::endl;
     }
+    ;
 };
 
 
-void Foo()
+int main()
 {
     A a;
     MyVisitor visitor;
 
     visitor(a);
+
+    return 0;
 }
 
 #if 0

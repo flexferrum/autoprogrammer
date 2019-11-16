@@ -242,9 +242,9 @@ public:
                 break;
             case clang::TemplateArgument::Expression:
             {
-                llvm::APSInt value;
+                clang::Expr::EvalResult value;
                 if (tplArg.getAsExpr()->EvaluateAsInt(value, *m_astContext))
-                    argInfo = ConvertAPSInt(value).AsSigned();
+                    argInfo = ConvertAPSInt(value.Val.getInt()).AsSigned();
                 else
                     argInfo = TemplateType::GenericArg{TemplateType::UnknownTplArg};
 

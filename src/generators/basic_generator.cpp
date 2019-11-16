@@ -42,11 +42,10 @@ R"(
 {% endif %}
 {% endfor %}
 
-{% block generator_headers %}{% endblock %}
-
-{% block namespaced_decls %}
+{% block generator_headers scoped %}{% endblock %}
+{% block namespaced_decls scoped %}
 {% set ns = rootNamespace %}
-{#ns | pprint}
+{# {ns | pprint}}
 {{rootNamespace | pprint} #}
 {% block namespace_content scoped %}{%endblock%}
 {% for ns in rootNamespace.innerNamespaces recursive %}namespace {{ns.name}}
@@ -57,7 +56,7 @@ R"(
 {% endfor %}
 {% endblock %}
 
-{% block global_decls %}{% endblock %}
+{% block global_decls scoped %}{% endblock %}
 
 {% if headerGuard is defined %}
  #endif // {{headerGuard}}
@@ -109,6 +108,13 @@ FileState OpenGeneratedFile(const std::string& fileName, std::ofstream& fileStre
 
 bool BasicGenerator::GenerateOutput(const clang::ASTContext* astContext, clang::SourceManager* sourceManager)
 {
+    auto settings = m_templateEnv.GetSettings();
+    settings.lstripBlocks = true;
+    settings.trimBlocks = true;
+    settings.useLineStatements = false;
+    settings.extensions.Do = true;
+    m_templateEnv.SetSettings(settings);
+
     m_templateEnv.AddFilesystemHandler(std::string(), m_inMemoryTemplates);
     m_inMemoryTemplates.AddFile("header_skeleton.j2tpl", g_headerSkeleton);
 

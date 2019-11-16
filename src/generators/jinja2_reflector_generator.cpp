@@ -140,7 +140,7 @@ void Jinja2ReflectorGenerator::HandleMatch(const clang::ast_matchers::MatchFinde
 {
     if (const clang::CXXRecordDecl* decl = matchResult.Nodes.getNodeAs<clang::CXXRecordDecl>("struct"))
     {
-        if (!IsFromInputFiles(decl->getLocStart(), matchResult.Context))
+        if (!IsFromInputFiles(decl->getBeginLoc(), matchResult.Context))
             return;
 
         reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);

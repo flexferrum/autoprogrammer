@@ -55,32 +55,19 @@ inline {{scopedName}} StringTo{{enumName}}(const char* itemName)
 {% endfor %}
     };
 
-    {{scopedName}} result;
-    if (!flex_lib::detail::String2Enum(itemName, items, result))
-         flex_lib::bad_enum_name::Throw(itemName, "{{enumName}}");
-
-    return result;
+    auto p = std::lower_bound(begin(items), end(items), itemName,
+                      [](auto&& i, auto&& v) {return strcmp(i.first, v) < 0;});
+    
+    if (p == end(items) || strcmp(p->first, itemName) != 0)
+        throw std::invalid_argument(std::string("Bad {{scopedName}} enum item name: ") + itemName);
+    
+    return p->second;
 }
 {% endfor %}{% endblock %}
 
 {% block global_decls %}
 {% for ns in [rootNamespace] recursive %}
 {% for enum in ns.enums %}
-
-namespace flex_lib
-{
-template<>
-inline const char* Enum2String({{enum.fullQualifiedName}} e)
-{
-    return {{enum.namespaceQualifier}}::{{enum.name}}ToString(e);
-}
-
-template<>
-inline {{enum.fullQualifiedName}} String2Enum<{{enum.fullQualifiedName}}>(const char* itemName)
-{
-    return {{enum.namespaceQualifier}}::StringTo{{enum.name}}(itemName);
-}
-}
 
 namespace std
 {
@@ -110,7 +97,7 @@ void Enum2StringGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::M
 {
     if (const clang::EnumDecl* decl = matchResult.Nodes.getNodeAs<clang::EnumDecl>("enum"))
     {
-        if (!IsFromInputFiles(decl->getLocStart(), matchResult.Context))
+        if (!IsFromInputFiles(decl->getBeginLoc(), matchResult.Context))
             return;
 
         reflection::AstReflector reflector(matchResult.Context, m_options.consoleWriter);
@@ -136,7 +123,12 @@ void Enum2StringGenerator::WriteHeaderPostamble(CppSourceStream &hdrOs)
 void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
 {
     jinja2::Template tpl(&m_templateEnv);
-    tpl.Load(g_enum2stringTemplate);
+    auto parse_res = tpl.Load(g_enum2stringTemplate);
+    if (!parse_res)
+    {
+        Report(MessageType::Fatal, "", 0, 0, "Template load error: " + parse_res.error().ToString());
+        return;
+    }
 
     jinja2::ValuesMap params = {
         {"inputFiles", jinja2::Reflect(m_options.inputFiles)},
@@ -146,7 +138,12 @@ void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
 
     SetupCommonTemplateParams(params);
 
-    tpl.Render(hdrOs, params);
+    auto render_res = tpl.Render(hdrOs, params);
+    if (!render_res)
+    {
+        Report(MessageType::Fatal, "", 0, 0, "Template render error: " + render_res.error().ToString());
+        return;
+    }
 }
 } // codegen
 
