@@ -120,9 +120,7 @@ target_link_libraries(${CODEGEN_BIN_NAME}
     clangRewrite
 	clangToolingInclusions
     ${EXTRA_LIBS}
-    boost_iostreams
-	boost_filesystem
-	boost_system
+    Boost::Boost
     Threads::Threads
     jinja2cpp
     )
