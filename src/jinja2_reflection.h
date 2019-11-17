@@ -2,40 +2,66 @@
 #define JINJA2_REFLECTION_H
 
 #include "ast_reflector.h"
-#include <jinja2cpp/reflected_value.h>
 
+#include <jinja2cpp/reflected_value.h>
 
 namespace jinja2
 {
-#define DUMMY_REFLECTOR(TypeName) \
-    template <> \
-    struct TypeReflection<TypeName> \
-    : TypeReflected<TypeName> { \
-    static auto &GetAccessors() { \
-    static std::unordered_map<std::string, FieldAccessor> accessors = { \
-}; \
-    \
-    return accessors; \
-} \
-}
+#define DUMMY_REFLECTOR(TypeName)                                                                                                                              \
+    template<>                                                                                                                                                 \
+    struct TypeReflection<TypeName> : TypeReflected<TypeName>                                                                                                  \
+    {                                                                                                                                                          \
+        static auto& GetAccessors()                                                                                                                            \
+        {                                                                                                                                                      \
+            static std::unordered_map<std::string, FieldAccessor> accessors = {};                                                                              \
+                                                                                                                                                               \
+            return accessors;                                                                                                                                  \
+        }                                                                                                                                                      \
+    }
 
 DUMMY_REFLECTOR(clang::ParmVarDecl);
 DUMMY_REFLECTOR(clang::CXXMethodDecl);
 DUMMY_REFLECTOR(clang::FieldDecl);
 DUMMY_REFLECTOR(clang::CXXRecordDecl);
-DUMMY_REFLECTOR(reflection::ClassInfo::InnerDeclInfo::DeclType);
+// DUMMY_REFLECTOR(reflection::ClassInfo::InnerDeclInfo::DeclType);
+DUMMY_REFLECTOR(reflection::TypedefInfo);
 DUMMY_REFLECTOR(clang::EnumConstantDecl);
 DUMMY_REFLECTOR(clang::EnumDecl);
 DUMMY_REFLECTOR(clang::NamespaceDecl);
 DUMMY_REFLECTOR(clang::BuiltinType);
 DUMMY_REFLECTOR(clang::RecordDecl);
 DUMMY_REFLECTOR(clang::NamedDecl);
+DUMMY_REFLECTOR(clang::ValueDecl);
 DUMMY_REFLECTOR(clang::Type);
 
-namespace detail {
-template <> struct Reflector<reflection::BuiltinType::Types> {
-    static auto Create(reflection::BuiltinType::Types val) {
-        switch (val) {
+namespace detail
+{
+template<typename... Args>
+struct Reflector<boost::variant<Args...>>
+{
+    struct VariantUnwrapper : public boost::static_visitor<Value>    
+    {
+        template<typename T>
+        auto operator()(T&& val) const
+        {
+            return Reflect(std::forward<T>(val));
+        }
+    };
+
+    static auto Create(const boost::variant<Args...>& val)
+    {
+        return boost::apply_visitor(VariantUnwrapper(), val);
+    }
+    static auto CreateFromPtr(const boost::variant<Args...>* val) { return Create(*val); }
+};
+
+template<>
+struct Reflector<reflection::BuiltinType::Types>
+{
+    static auto Create(reflection::BuiltinType::Types val)
+    {
+        switch (val)
+        {
         case reflection::BuiltinType::Unspecified:
             return Value(std::string("Unspecified"));
         case reflection::BuiltinType::Void:
@@ -72,13 +98,15 @@ template <> struct Reflector<reflection::BuiltinType::Types> {
 
         return Value();
     }
-    static auto CreateFromPtr(const reflection::BuiltinType::Types *val) {
-        return Create(*val);
-    }
+    static auto CreateFromPtr(const reflection::BuiltinType::Types* val) { return Create(*val); }
 };
-template <> struct Reflector<reflection::BuiltinType::SignType> {
-    static auto Create(reflection::BuiltinType::SignType val) {
-        switch (val) {
+template<>
+struct Reflector<reflection::BuiltinType::SignType>
+{
+    static auto Create(reflection::BuiltinType::SignType val)
+    {
+        switch (val)
+        {
         case reflection::BuiltinType::Signed:
             return Value(std::string("Signed"));
         case reflection::BuiltinType::Unsigned:
@@ -89,13 +117,15 @@ template <> struct Reflector<reflection::BuiltinType::SignType> {
 
         return Value();
     }
-    static auto CreateFromPtr(const reflection::BuiltinType::SignType *val) {
-        return Create(*val);
-    }
+    static auto CreateFromPtr(const reflection::BuiltinType::SignType* val) { return Create(*val); }
 };
-template <> struct Reflector<clang::BuiltinType::Kind> {
-    static auto Create(clang::BuiltinType::Kind val) {
-        switch (val) {
+template<>
+struct Reflector<clang::BuiltinType::Kind>
+{
+    static auto Create(clang::BuiltinType::Kind val)
+    {
+        switch (val)
+        {
         case clang::BuiltinType::OCLImage1dRO:
             return Value(std::string("OCLImage1dRO"));
         case clang::BuiltinType::OCLImage1dArrayRO:
@@ -256,13 +286,15 @@ template <> struct Reflector<clang::BuiltinType::Kind> {
 
         return Value();
     }
-    static auto CreateFromPtr(const clang::BuiltinType::Kind *val) {
-        return Create(*val);
-    }
+    static auto CreateFromPtr(const clang::BuiltinType::Kind* val) { return Create(*val); }
 };
-template <> struct Reflector<reflection::TemplateType::TplArgKind> {
-    static auto Create(reflection::TemplateType::TplArgKind val) {
-        switch (val) {
+template<>
+struct Reflector<reflection::TemplateType::TplArgKind>
+{
+    static auto Create(reflection::TemplateType::TplArgKind val)
+    {
+        switch (val)
+        {
         case reflection::TemplateType::UnknownTplArg:
             return Value(std::string("UnknownTplArg"));
         case reflection::TemplateType::NullTplArg:
@@ -279,13 +311,15 @@ template <> struct Reflector<reflection::TemplateType::TplArgKind> {
 
         return Value();
     }
-    static auto CreateFromPtr(const reflection::TemplateType::TplArgKind *val) {
-        return Create(*val);
-    }
+    static auto CreateFromPtr(const reflection::TemplateType::TplArgKind* val) { return Create(*val); }
 };
-template <> struct Reflector<reflection::WellKnownType::Types> {
-    static auto Create(reflection::WellKnownType::Types val) {
-        switch (val) {
+template<>
+struct Reflector<reflection::WellKnownType::Types>
+{
+    static auto Create(reflection::WellKnownType::Types val)
+    {
+        switch (val)
+        {
         case reflection::WellKnownType::StdArray:
             return Value(std::string("StdArray"));
         case reflection::WellKnownType::StdString:
@@ -320,13 +354,15 @@ template <> struct Reflector<reflection::WellKnownType::Types> {
 
         return Value();
     }
-    static auto CreateFromPtr(const reflection::WellKnownType::Types *val) {
-        return Create(*val);
-    }
+    static auto CreateFromPtr(const reflection::WellKnownType::Types* val) { return Create(*val); }
 };
-template <> struct Reflector<reflection::AccessType> {
-    static auto Create(reflection::AccessType val) {
-        switch (val) {
+template<>
+struct Reflector<reflection::AccessType>
+{
+    static auto Create(reflection::AccessType val)
+    {
+        switch (val)
+        {
         case reflection::AccessType::Public:
             return Value(std::string("Public"));
         case reflection::AccessType::Protected:
@@ -339,13 +375,15 @@ template <> struct Reflector<reflection::AccessType> {
 
         return Value();
     }
-    static auto CreateFromPtr(const reflection::AccessType *val) {
-        return Create(*val);
-    }
+    static auto CreateFromPtr(const reflection::AccessType* val) { return Create(*val); }
 };
-template <> struct Reflector<reflection::AssignmentOperType> {
-    static auto Create(reflection::AssignmentOperType val) {
-        switch (val) {
+template<>
+struct Reflector<reflection::AssignmentOperType>
+{
+    static auto Create(reflection::AssignmentOperType val)
+    {
+        switch (val)
+        {
         case reflection::AssignmentOperType::None:
             return Value(std::string("None"));
         case reflection::AssignmentOperType::Generic:
@@ -358,13 +396,15 @@ template <> struct Reflector<reflection::AssignmentOperType> {
 
         return Value();
     }
-    static auto CreateFromPtr(const reflection::AssignmentOperType *val) {
-        return Create(*val);
-    }
+    static auto CreateFromPtr(const reflection::AssignmentOperType* val) { return Create(*val); }
 };
-template <> struct Reflector<reflection::ConstructorType> {
-    static auto Create(reflection::ConstructorType val) {
-        switch (val) {
+template<>
+struct Reflector<reflection::ConstructorType>
+{
+    static auto Create(reflection::ConstructorType val)
+    {
+        switch (val)
+        {
         case reflection::ConstructorType::None:
             return Value(std::string("None"));
         case reflection::ConstructorType::Generic:
@@ -381,234 +421,171 @@ template <> struct Reflector<reflection::ConstructorType> {
 
         return Value();
     }
-    static auto CreateFromPtr(const reflection::ConstructorType *val) {
-        return Create(*val);
-    }
+    static auto CreateFromPtr(const reflection::ConstructorType* val) { return Create(*val); }
 };
 } // namespace detail
 
+template<>
+struct TypeReflection<reflection::NoType> : TypeReflected<reflection::NoType>
+{
+    static auto& GetAccessors()
+    {
+        static std::unordered_map<std::string, FieldAccessor> accessors = { { "isNoType", [](const reflection::NoType&) { return true; } } };
 
-template <>
-struct TypeReflection<reflection::NoType> : TypeReflected<reflection::NoType> {
-    static auto &GetAccessors() {
+        return accessors;
+    }
+};
+template<>
+struct TypeReflection<reflection::BuiltinType> : TypeReflected<reflection::BuiltinType>
+{
+    static auto& GetAccessors()
+    {
+        static std::unordered_map<std::string, FieldAccessor> accessors = { { "bits", [](const reflection::BuiltinType& obj) { return Reflect(obj.bits); } },
+                                                                            { "isSigned",
+                                                                              [](const reflection::BuiltinType& obj) { return Reflect(obj.isSigned); } },
+                                                                            { "kind", [](const reflection::BuiltinType& obj) { return Reflect(obj.kind); } },
+                                                                            { "type", [](const reflection::BuiltinType& obj) { return Reflect(obj.type); } },
+                                                                            { "isBuiltinType", [](const reflection::BuiltinType&) { return true; } } };
+
+        return accessors;
+    }
+};
+template<>
+struct TypeReflection<reflection::RecordType> : TypeReflected<reflection::RecordType>
+{
+    static auto& GetAccessors()
+    {
+        static std::unordered_map<std::string, FieldAccessor> accessors = { { "isRecordType", [](const reflection::RecordType&) { return true; } } };
+
+        return accessors;
+    }
+};
+
+template<>
+struct TypeReflection<reflection::TemplateType> : TypeReflected<reflection::TemplateType>
+{
+    static auto& GetAccessors()
+    {
+        static std::unordered_map<std::string, FieldAccessor> accessors = { { "aliasedType",
+                                                                              [](const reflection::TemplateType& obj) { return Reflect(obj.aliasedType); } },
+                                                                            //        {"arguments",
+                                                                            //         [](const reflection::TemplateType &obj) {
+                                                                            //           return Reflect(obj.arguments);
+                                                                            //         }},
+                                                                            { "isTemplateType", [](const reflection::TemplateType&) { return true; } } };
+
+        return accessors;
+    }
+};
+template<>
+struct TypeReflection<reflection::TemplateType::GenericArg> : TypeReflected<reflection::TemplateType::GenericArg>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"isNoType", [](const reflection::NoType&) { return true; }}
+            { "kind", [](const reflection::TemplateType::GenericArg& obj) { return Reflect(obj.kind); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::BuiltinType>
-        : TypeReflected<reflection::BuiltinType> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::WellKnownType> : TypeReflected<reflection::WellKnownType>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"bits",
-             [](const reflection::BuiltinType &obj) { return Reflect(obj.bits); }},
-            {"isSigned",
-             [](const reflection::BuiltinType &obj) {
-                 return Reflect(obj.isSigned);
-             }},
-            {"kind",
-             [](const reflection::BuiltinType &obj) { return Reflect(obj.kind); }},
-            {"type",
-             [](const reflection::BuiltinType &obj) { return Reflect(obj.type); }},
-            {"isBuiltinType", [](const reflection::BuiltinType&) { return true; }}
+            { "aliasedType", [](const reflection::WellKnownType& obj) { return Reflect(obj.aliasedType); } },
+            { "arguments", [](const reflection::WellKnownType& obj) { return Reflect(obj.arguments); } },
+            { "type", [](const reflection::WellKnownType& obj) { return Reflect(obj.type); } },
+            { "isWellKnownType", [](const reflection::WellKnownType&) { return true; } }
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::RecordType>
-        : TypeReflected<reflection::RecordType> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::ArrayType> : TypeReflected<reflection::ArrayType>
+{
+    static auto& GetAccessors()
+    {
+        static std::unordered_map<std::string, FieldAccessor> accessors = { { "dims", [](const reflection::ArrayType& obj) { return Reflect(obj.dims); } },
+                                                                            { "itemType",
+                                                                              [](const reflection::ArrayType& obj) { return Reflect(obj.itemType); } },
+                                                                            { "isArrayType", [](const reflection::ArrayType&) { return true; } } };
+
+        return accessors;
+    }
+};
+template<>
+struct TypeReflection<reflection::EnumType> : TypeReflected<reflection::EnumType>
+{
+    static auto& GetAccessors()
+    {
+        static std::unordered_map<std::string, FieldAccessor> accessors = { { "isEnumType", [](const reflection::EnumType&) { return true; } } };
+
+        return accessors;
+    }
+};
+template<>
+struct TypeReflection<reflection::DecltypeType> : TypeReflected<reflection::DecltypeType>
+{
+    static auto& GetAccessors()
+    {
+        static std::unordered_map<std::string, FieldAccessor> accessors = { { "isDecltypeType", [](const reflection::DecltypeType&) { return true; } } };
+
+        return accessors;
+    }
+};
+template<>
+struct TypeReflection<reflection::TemplateParamType> : TypeReflected<reflection::TemplateParamType>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"isRecordType", [](const reflection::RecordType&) { return true; }}
+            { "isPack", [](const reflection::TemplateParamType& obj) { return Reflect(obj.isPack); } },
+            { "isTemplateParamType", [](const reflection::TemplateParamType&) { return true; } }
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::TemplateType>
-        : TypeReflected<reflection::TemplateType> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::TypeInfo> : TypeReflected<reflection::TypeInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"aliasedType",
-             [](const reflection::TemplateType &obj) {
-                 return Reflect(obj.aliasedType);
-             }},
-            //        {"arguments",
-            //         [](const reflection::TemplateType &obj) {
-            //           return Reflect(obj.arguments);
-            //         }},
-            {"isTemplateType", [](const reflection::TemplateType&) { return true; }}
-        };
-
-        return accessors;
-    }
-};
-template <>
-struct TypeReflection<reflection::TemplateType::GenericArg>
-        : TypeReflected<reflection::TemplateType::GenericArg> {
-    static auto &GetAccessors() {
-        static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"kind",
-             [](const reflection::TemplateType::GenericArg &obj) {
-                 return Reflect(obj.kind);
-             }},
-        };
-
-        return accessors;
-    }
-};
-template <>
-struct TypeReflection<reflection::WellKnownType>
-        : TypeReflected<reflection::WellKnownType> {
-    static auto &GetAccessors() {
-        static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"aliasedType",
-             [](const reflection::WellKnownType &obj) {
-                 return Reflect(obj.aliasedType);
-             }},
-            //        {"arguments",
-            //         [](const reflection::WellKnownType &obj) {
-            //           return Reflect(obj.arguments);
-            //         }},
-            {"type",
-             [](const reflection::WellKnownType &obj) {
-                 return Reflect(obj.type);
-             }},
-            {"isWellKnownType", [](const reflection::WellKnownType&) { return true; }}
-        };
-
-        return accessors;
-    }
-};
-template <>
-struct TypeReflection<reflection::ArrayType>
-        : TypeReflected<reflection::ArrayType> {
-    static auto &GetAccessors() {
-        static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"dims",
-             [](const reflection::ArrayType &obj) { return Reflect(obj.dims); }},
-            {"itemType",
-             [](const reflection::ArrayType &obj) {
-                 return Reflect(obj.itemType);
-             }},
-            {"isArrayType", [](const reflection::ArrayType&) { return true; }}
-        };
-
-        return accessors;
-    }
-};
-template <>
-struct TypeReflection<reflection::EnumType>
-        : TypeReflected<reflection::EnumType> {
-    static auto &GetAccessors() {
-        static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"isEnumType", [](const reflection::EnumType&) { return true; }}
-        };
-
-        return accessors;
-    }
-};
-template <>
-struct TypeReflection<reflection::DecltypeType>
-        : TypeReflected<reflection::DecltypeType> {
-    static auto &GetAccessors() {
-        static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"isDecltypeType", [](const reflection::DecltypeType&) { return true; }}
-        };
-
-        return accessors;
-    }
-};
-template <>
-struct TypeReflection<reflection::TemplateParamType>
-        : TypeReflected<reflection::TemplateParamType> {
-    static auto &GetAccessors() {
-        static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"isPack",
-             [](const reflection::TemplateParamType &obj) {
-                 return Reflect(obj.isPack);
-             }},
-            {"isTemplateParamType", [](const reflection::TemplateParamType&) { return true; }}
-        };
-
-        return accessors;
-    }
-};
-template <>
-struct TypeReflection<reflection::TypeInfo>
-        : TypeReflected<reflection::TypeInfo> {
-    static auto &GetAccessors() {
-        static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"canBeMoved",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.canBeMoved());
-             }},
-            {"declaredName",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.getDeclaredName());
-             }},
-            {"fullQualifiedName",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.getFullQualifiedName());
-             }},
-            {"isConst",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.getIsConst());
-             }},
-            {"isNoType",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.isNoType());
-             }},
-            {"isReference",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.getIsReference());
-             }},
-            {"isRVReference",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.getIsRVReference());
-             }},
-            {"isVolatile",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.getIsVolatile());
-             }},
-            {"pointingLevels",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.getPointingLevels());
-             }},
-            {"printedName",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.getPrintedName());
-             }},
-            {"scopedName",
-             [](const reflection::TypeInfo &obj) {
-                 return Reflect(obj.getScopedName());
-             }},
-            {"type",
-             [](const reflection::TypeInfo &obj) {
-                 return boost::apply_visitor(InnerTypeReflector(), obj.GetType());
-             }}
+            { "canBeMoved", [](const reflection::TypeInfo& obj) { return Reflect(obj.canBeMoved()); } },
+            { "declaredName", [](const reflection::TypeInfo& obj) { return Reflect(obj.getDeclaredName()); } },
+            { "fullQualifiedName", [](const reflection::TypeInfo& obj) { return Reflect(obj.getFullQualifiedName()); } },
+            { "isConst", [](const reflection::TypeInfo& obj) { return Reflect(obj.getIsConst()); } },
+            { "isNoType", [](const reflection::TypeInfo& obj) { return Reflect(obj.isNoType()); } },
+            { "isReference", [](const reflection::TypeInfo& obj) { return Reflect(obj.getIsReference()); } },
+            { "isRVReference", [](const reflection::TypeInfo& obj) { return Reflect(obj.getIsRVReference()); } },
+            { "isVolatile", [](const reflection::TypeInfo& obj) { return Reflect(obj.getIsVolatile()); } },
+            { "pointingLevels", [](const reflection::TypeInfo& obj) { return Reflect(obj.getPointingLevels()); } },
+            { "printedName", [](const reflection::TypeInfo& obj) { return Reflect(obj.getPrintedName()); } },
+            { "scopedName", [](const reflection::TypeInfo& obj) { return Reflect(obj.getScopedName()); } },
+            { "type", [](const reflection::TypeInfo& obj) { return Reflect(obj.GetType()); } }
         };
 
         return accessors;
     }
 
+#if 0
     struct InnerTypeReflector : public boost::static_visitor<Value>
     {
         template<typename T>
-        auto operator() (T&& val) const
+        auto operator()(T&& val) const
         {
             return Reflect(std::forward<T>(val));
         }
     };
+#endif
 };
-//template <>
-//struct TypeReflection<reflection::TypeInfo::canBeMoved::Visitor>
+// template <>
+// struct TypeReflection<reflection::TypeInfo::canBeMoved::Visitor>
 //    : TypeReflected<reflection::TypeInfo::canBeMoved::Visitor> {
 //  static auto &GetAccessors() {
 //    static std::unordered_map<std::string, FieldAccessor> accessors = {
@@ -622,515 +599,257 @@ struct TypeReflection<reflection::TypeInfo>
 //  }
 //};
 
-template <>
-struct TypeReflection<reflection::NamedDeclInfo>
-        : TypeReflected<reflection::NamedDeclInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::NamedDeclInfo> : TypeReflected<reflection::NamedDeclInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"fullQualifiedName",
-             [](const reflection::NamedDeclInfo &obj) {
-                 return Reflect(obj.GetFullQualifiedName());
-             }},
-            {"name",
-             [](const reflection::NamedDeclInfo &obj) {
-                 return Reflect(obj.name);
-             }},
-            {"namespaceQualifier",
-             [](const reflection::NamedDeclInfo &obj) {
-                 return Reflect(obj.namespaceQualifier);
-             }},
-            {"scopedName",
-             [](const reflection::NamedDeclInfo &obj) {
-                 return Reflect(obj.GetScopedName());
-             }},
-            {"scopeSpecifier",
-             [](const reflection::NamedDeclInfo &obj) {
-                 return Reflect(obj.scopeSpecifier);
-             }},
+            { "fullQualifiedName", [](const reflection::NamedDeclInfo& obj) { return Reflect(obj.GetFullQualifiedName()); } },
+            { "name", [](const reflection::NamedDeclInfo& obj) { return Reflect(obj.name); } },
+            { "namespaceQualifier", [](const reflection::NamedDeclInfo& obj) { return Reflect(obj.namespaceQualifier); } },
+            { "scopedName", [](const reflection::NamedDeclInfo& obj) { return Reflect(obj.GetScopedName()); } },
+            { "scopeSpecifier", [](const reflection::NamedDeclInfo& obj) { return Reflect(obj.scopeSpecifier); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::SourceLocation>
-        : TypeReflected<reflection::SourceLocation> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::SourceLocation> : TypeReflected<reflection::SourceLocation>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"column",
-             [](const reflection::SourceLocation &obj) {
-                 return Reflect(obj.column);
-             }},
-            {"fileName",
-             [](const reflection::SourceLocation &obj) {
-                 return Reflect(obj.fileName);
-             }},
-            {"line",
-             [](const reflection::SourceLocation &obj) {
-                 return Reflect(obj.line);
-             }},
+            { "column", [](const reflection::SourceLocation& obj) { return Reflect(obj.column); } },
+            { "fileName", [](const reflection::SourceLocation& obj) { return Reflect(obj.fileName); } },
+            { "line", [](const reflection::SourceLocation& obj) { return Reflect(obj.line); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::LocationInfo>
-        : TypeReflected<reflection::LocationInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::LocationInfo> : TypeReflected<reflection::LocationInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"location",
-             [](const reflection::LocationInfo &obj) {
-                 return Reflect(obj.location);
-             }},
+            { "location", [](const reflection::LocationInfo& obj) { return Reflect(obj.location); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::MethodParamInfo>
-        : TypeReflected<reflection::MethodParamInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::MethodParamInfo> : TypeReflected<reflection::MethodParamInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"fullDecl",
-             [](const reflection::MethodParamInfo &obj) {
-                 return Reflect(obj.fullDecl);
-             }},
-            {"name",
-             [](const reflection::MethodParamInfo &obj) {
-                 return Reflect(obj.name);
-             }},
-            {"type",
-             [](const reflection::MethodParamInfo &obj) {
-                 return Reflect(obj.type);
-             }},
+            { "fullDecl", [](const reflection::MethodParamInfo& obj) { return Reflect(obj.fullDecl); } },
+            { "name", [](const reflection::MethodParamInfo& obj) { return Reflect(obj.name); } },
+            { "type", [](const reflection::MethodParamInfo& obj) { return Reflect(obj.type); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::TemplateParamInfo>
-        : TypeReflected<reflection::TemplateParamInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::TemplateParamInfo> : TypeReflected<reflection::TemplateParamInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"tplDeclName",
-             [](const reflection::TemplateParamInfo &obj) {
-                 return Reflect(obj.tplDeclName);
-             }},
-            {"tplDeclName",
-             [](const reflection::TemplateParamInfo &obj) {
-                 return Reflect(obj.tplDeclName);
-             }},
-            {"kind",
-             [](const reflection::TemplateParamInfo &obj) {
-                 return Reflect(obj.kind);
-             }},
-            {"isParamPack",
-             [](const reflection::TemplateParamInfo &obj) {
-                 return Reflect(obj.isParamPack);
-             }},
+            { "tplDeclName", [](const reflection::TemplateParamInfo& obj) { return Reflect(obj.tplDeclName); } },
+            { "tplDeclName", [](const reflection::TemplateParamInfo& obj) { return Reflect(obj.tplDeclName); } },
+            { "kind", [](const reflection::TemplateParamInfo& obj) { return Reflect(obj.kind); } },
+            { "isParamPack", [](const reflection::TemplateParamInfo& obj) { return Reflect(obj.isParamPack); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::MethodInfo>
-        : TypeReflected<reflection::MethodInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::MethodInfo> : TypeReflected<reflection::MethodInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"accessType",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.accessType);
-             }},
-            {"assignmentOperType",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.assignmentOperType);
-             }},
-            {"constructorType",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.constructorType);
-             }},
-            {"declLocation",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.declLocation);
-             }},
-            {"defLocation",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.defLocation);
-             }},
-            {"fullPrototype",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.fullPrototype);
-             }},
-            {"fullQualifiedName",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.GetFullQualifiedName());
-             }},
-            {"isConst",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isConst);
-             }},
-            {"isCtor",
-             [](const reflection::MethodInfo &obj) { return Reflect(obj.isCtor); }},
-            {"isDeleted",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isDeleted);
-             }},
-            {"isDtor",
-             [](const reflection::MethodInfo &obj) { return Reflect(obj.isDtor); }},
-            {"isExplicitCtor",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isExplicitCtor);
-             }},
-            {"isImplicit",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isImplicit);
-             }},
-            {"isNoExcept",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isNoExcept);
-             }},
-            {"isOperator",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isOperator);
-             }},
-            {"isPure",
-             [](const reflection::MethodInfo &obj) { return Reflect(obj.isPure); }},
-            {"isRVRef",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isRVRef);
-             }},
-            {"isStatic",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isStatic);
-             }},
-            {"isVirtual",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isVirtual);
-             }},
-            {"isTemplate",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isTemplate());
-             }},
-            {"isInlined",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isInlined | obj.isClassScopeInlined);
-             }},
-            {"isClassScopeInlined",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isClassScopeInlined);
-             }},
-            {"isDefined",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.isDefined);
-             }},
-            {"name",
-             [](const reflection::MethodInfo &obj)
-             {
-                 return Reflect(obj.name);
-             }},
-            {"body",
-             [](const reflection::MethodInfo &obj)
-             {
-                 return obj.isDefined ? Reflect(obj.body) : Value();
-             }},
-            {"namespaceQualifier",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.namespaceQualifier);
-             }},
-            {"params",
-             [](const reflection::MethodInfo &obj) { return Reflect(obj.params); }},
-            {"tplParams",
-             [](const reflection::MethodInfo &obj) { return Reflect(obj.tplParams); }},
-            {"returnType",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.returnType);
-             }},
-            {"returnTypeAsString",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.returnTypeAsString);
-             }},
-            {"scopedName",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.GetScopedName());
-             }},
-            {"scopeSpecifier",
-             [](const reflection::MethodInfo &obj) {
-                 return Reflect(obj.scopeSpecifier);
-             }},
+            { "accessType", [](const reflection::MethodInfo& obj) { return Reflect(obj.accessType); } },
+            { "assignmentOperType", [](const reflection::MethodInfo& obj) { return Reflect(obj.assignmentOperType); } },
+            { "constructorType", [](const reflection::MethodInfo& obj) { return Reflect(obj.constructorType); } },
+            { "declLocation", [](const reflection::MethodInfo& obj) { return Reflect(obj.declLocation); } },
+            { "defLocation", [](const reflection::MethodInfo& obj) { return Reflect(obj.defLocation); } },
+            { "fullPrototype", [](const reflection::MethodInfo& obj) { return Reflect(obj.fullPrototype); } },
+            { "fullQualifiedName", [](const reflection::MethodInfo& obj) { return Reflect(obj.GetFullQualifiedName()); } },
+            { "isConst", [](const reflection::MethodInfo& obj) { return Reflect(obj.isConst); } },
+            { "isCtor", [](const reflection::MethodInfo& obj) { return Reflect(obj.isCtor); } },
+            { "isDeleted", [](const reflection::MethodInfo& obj) { return Reflect(obj.isDeleted); } },
+            { "isDtor", [](const reflection::MethodInfo& obj) { return Reflect(obj.isDtor); } },
+            { "isExplicitCtor", [](const reflection::MethodInfo& obj) { return Reflect(obj.isExplicitCtor); } },
+            { "isImplicit", [](const reflection::MethodInfo& obj) { return Reflect(obj.isImplicit); } },
+            { "isNoExcept", [](const reflection::MethodInfo& obj) { return Reflect(obj.isNoExcept); } },
+            { "isOperator", [](const reflection::MethodInfo& obj) { return Reflect(obj.isOperator); } },
+            { "isPure", [](const reflection::MethodInfo& obj) { return Reflect(obj.isPure); } },
+            { "isRVRef", [](const reflection::MethodInfo& obj) { return Reflect(obj.isRVRef); } },
+            { "isStatic", [](const reflection::MethodInfo& obj) { return Reflect(obj.isStatic); } },
+            { "isVirtual", [](const reflection::MethodInfo& obj) { return Reflect(obj.isVirtual); } },
+            { "isTemplate", [](const reflection::MethodInfo& obj) { return Reflect(obj.isTemplate()); } },
+            { "isInlined", [](const reflection::MethodInfo& obj) { return Reflect(obj.isInlined | obj.isClassScopeInlined); } },
+            { "isClassScopeInlined", [](const reflection::MethodInfo& obj) { return Reflect(obj.isClassScopeInlined); } },
+            { "isDefined", [](const reflection::MethodInfo& obj) { return Reflect(obj.isDefined); } },
+            { "name", [](const reflection::MethodInfo& obj) { return Reflect(obj.name); } },
+            { "body", [](const reflection::MethodInfo& obj) { return obj.isDefined ? Reflect(obj.body) : Value(); } },
+            { "namespaceQualifier", [](const reflection::MethodInfo& obj) { return Reflect(obj.namespaceQualifier); } },
+            { "params", [](const reflection::MethodInfo& obj) { return Reflect(obj.params); } },
+            { "tplParams", [](const reflection::MethodInfo& obj) { return Reflect(obj.tplParams); } },
+            { "returnType", [](const reflection::MethodInfo& obj) { return Reflect(obj.returnType); } },
+            { "returnTypeAsString", [](const reflection::MethodInfo& obj) { return Reflect(obj.returnTypeAsString); } },
+            { "scopedName", [](const reflection::MethodInfo& obj) { return Reflect(obj.GetScopedName()); } },
+            { "scopeSpecifier", [](const reflection::MethodInfo& obj) { return Reflect(obj.scopeSpecifier); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::MemberInfo>
-        : TypeReflected<reflection::MemberInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::MemberInfo> : TypeReflected<reflection::MemberInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"accessType",
-             [](const reflection::MemberInfo &obj) {
-                 return Reflect(obj.accessType);
-             }},
-            {"fullQualifiedName",
-             [](const reflection::MemberInfo &obj) {
-                 return Reflect(obj.GetFullQualifiedName());
-             }},
-            {"isStatic",
-             [](const reflection::MemberInfo &obj) {
-                 return Reflect(obj.isStatic);
-             }},
-            {"location",
-             [](const reflection::MemberInfo &obj) {
-                 return Reflect(obj.location);
-             }},
-            {"name",
-             [](const reflection::MemberInfo &obj) { return Reflect(obj.name); }},
-            {"namespaceQualifier",
-             [](const reflection::MemberInfo &obj) {
-                 return Reflect(obj.namespaceQualifier);
-             }},
-            {"scopedName",
-             [](const reflection::MemberInfo &obj) {
-                 return Reflect(obj.GetScopedName());
-             }},
-            {"scopeSpecifier",
-             [](const reflection::MemberInfo &obj) {
-                 return Reflect(obj.scopeSpecifier);
-             }},
-            {"type",
-             [](const reflection::MemberInfo &obj) { return Reflect(obj.type); }},
+            { "accessType", [](const reflection::MemberInfo& obj) { return Reflect(obj.accessType); } },
+            { "fullQualifiedName", [](const reflection::MemberInfo& obj) { return Reflect(obj.GetFullQualifiedName()); } },
+            { "isStatic", [](const reflection::MemberInfo& obj) { return Reflect(obj.isStatic); } },
+            { "location", [](const reflection::MemberInfo& obj) { return Reflect(obj.location); } },
+            { "name", [](const reflection::MemberInfo& obj) { return Reflect(obj.name); } },
+            { "namespaceQualifier", [](const reflection::MemberInfo& obj) { return Reflect(obj.namespaceQualifier); } },
+            { "scopedName", [](const reflection::MemberInfo& obj) { return Reflect(obj.GetScopedName()); } },
+            { "scopeSpecifier", [](const reflection::MemberInfo& obj) { return Reflect(obj.scopeSpecifier); } },
+            { "type", [](const reflection::MemberInfo& obj) { return Reflect(obj.type); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::GenericDeclPart>
-        : TypeReflected<reflection::GenericDeclPart> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::GenericDeclPart> : TypeReflected<reflection::GenericDeclPart>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"accessType",
-             [](const reflection::GenericDeclPart &obj) {
-                 return Reflect(obj.accessType);
-             }},
-            {"content",
-             [](const reflection::GenericDeclPart &obj) {
-                 return Reflect(obj.content);
-             }},
-            {"location",
-             [](const reflection::GenericDeclPart &obj) {
-                 return Reflect(obj.location);
-             }}
+            { "accessType", [](const reflection::GenericDeclPart& obj) { return Reflect(obj.accessType); } },
+            { "content", [](const reflection::GenericDeclPart& obj) { return Reflect(obj.content); } },
+            { "location", [](const reflection::GenericDeclPart& obj) { return Reflect(obj.location); } }
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::ClassInfo>
-        : TypeReflected<reflection::ClassInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::ClassInfo> : TypeReflected<reflection::ClassInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"baseClasses",
-             [](const reflection::ClassInfo &obj) {
-                 return Reflect(obj.baseClasses);
-             }},
-            {"fullQualifiedName",
-             [](const reflection::ClassInfo &obj) {
-                 return Reflect(obj.GetFullQualifiedName());
-             }},
-            {"hasDefinition",
-             [](const reflection::ClassInfo &obj) {
-                 return Reflect(obj.hasDefinition);
-             }},
-            {"innerDecls",
-             [](const reflection::ClassInfo &obj) {
-                 return Reflect(obj.innerDecls);
-             }},
-            {"isAbstract",
-             [](const reflection::ClassInfo &obj) {
-                 return Reflect(obj.isAbstract);
-             }},
-            {"isTrivial",
-             [](const reflection::ClassInfo &obj) {
-                 return Reflect(obj.isTrivial);
-             }},
-            {"isUnion",
-             [](const reflection::ClassInfo &obj) { return Reflect(obj.isUnion); }},
-            {"location",
-             [](const reflection::ClassInfo &obj) {
-                 return Reflect(obj.location);
-             }},
-            {"members",
-             [](const reflection::ClassInfo &obj) { return Reflect(obj.members); }},
-            {"genericParts",
-             [](const reflection::ClassInfo &obj) { return Reflect(obj.genericParts); }},
-            {"methods",
-             [](const reflection::ClassInfo &obj) { return Reflect(obj.methods); }},
-            {"tplParams",
-             [](const reflection::ClassInfo &obj) { return Reflect(obj.templateParams); }},
-            {"isTemplate",
-             [](const reflection::ClassInfo &obj) { return !obj.templateParams.empty(); }},
-            {"name",
-             [](const reflection::ClassInfo &obj) { return Reflect(obj.name); }},
-            {"namespaceQualifier",
-             [](const reflection::ClassInfo &obj) {
-                 return Reflect(obj.namespaceQualifier);
-             }},
-            {"scopedName",
-             [](const reflection::ClassInfo &obj) {
-                 return Reflect(obj.GetScopedName());
-             }},
-            {"scopeSpecifier",
-             [](const reflection::ClassInfo &obj) {
-                 return Reflect(obj.scopeSpecifier);
-             }},
+            { "baseClasses", [](const reflection::ClassInfo& obj) { return Reflect(obj.baseClasses); } },
+            { "fullQualifiedName", [](const reflection::ClassInfo& obj) { return Reflect(obj.GetFullQualifiedName()); } },
+            { "hasDefinition", [](const reflection::ClassInfo& obj) { return Reflect(obj.hasDefinition); } },
+            { "innerDecls", [](const reflection::ClassInfo& obj) { return Reflect(obj.innerDecls); } },
+            { "isAbstract", [](const reflection::ClassInfo& obj) { return Reflect(obj.isAbstract); } },
+            { "isTrivial", [](const reflection::ClassInfo& obj) { return Reflect(obj.isTrivial); } },
+            { "isUnion", [](const reflection::ClassInfo& obj) { return Reflect(obj.isUnion); } },
+            { "location", [](const reflection::ClassInfo& obj) { return Reflect(obj.location); } },
+            { "members", [](const reflection::ClassInfo& obj) { return Reflect(obj.members); } },
+            { "genericParts", [](const reflection::ClassInfo& obj) { return Reflect(obj.genericParts); } },
+            { "methods", [](const reflection::ClassInfo& obj) { return Reflect(obj.methods); } },
+            { "tplParams", [](const reflection::ClassInfo& obj) { return Reflect(obj.templateParams); } },
+            { "isTemplate", [](const reflection::ClassInfo& obj) { return !obj.templateParams.empty(); } },
+            { "name", [](const reflection::ClassInfo& obj) { return Reflect(obj.name); } },
+            { "namespaceQualifier", [](const reflection::ClassInfo& obj) { return Reflect(obj.namespaceQualifier); } },
+            { "scopedName", [](const reflection::ClassInfo& obj) { return Reflect(obj.GetScopedName()); } },
+            { "scopeSpecifier", [](const reflection::ClassInfo& obj) { return Reflect(obj.scopeSpecifier); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::ClassInfo::BaseInfo>
-        : TypeReflected<reflection::ClassInfo::BaseInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::ClassInfo::BaseInfo> : TypeReflected<reflection::ClassInfo::BaseInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"accessType",
-             [](const reflection::ClassInfo::BaseInfo &obj) {
-                 return Reflect(obj.accessType);
-             }},
-            {"baseClass",
-             [](const reflection::ClassInfo::BaseInfo &obj) {
-                 return Reflect(obj.baseClass);
-             }},
-            {"isVirtual",
-             [](const reflection::ClassInfo::BaseInfo &obj) {
-                 return Reflect(obj.isVirtual);
-             }},
+            { "accessType", [](const reflection::ClassInfo::BaseInfo& obj) { return Reflect(obj.accessType); } },
+            { "baseClass", [](const reflection::ClassInfo::BaseInfo& obj) { return Reflect(obj.baseClass); } },
+            { "isVirtual", [](const reflection::ClassInfo::BaseInfo& obj) { return Reflect(obj.isVirtual); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::ClassInfo::InnerDeclInfo>
-        : TypeReflected<reflection::ClassInfo::InnerDeclInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::ClassInfo::InnerDeclInfo> : TypeReflected<reflection::ClassInfo::InnerDeclInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"acessType",
-             [](const reflection::ClassInfo::InnerDeclInfo &obj) {
-                 return Reflect(obj.acessType);
-             }},
-            {"innerDecl",
-             [](const reflection::ClassInfo::InnerDeclInfo &obj) {
-                 return Reflect(obj.innerDecl);
-             }},
+            { "acessType", [](const reflection::ClassInfo::InnerDeclInfo& obj) { return Reflect(obj.acessType); } },
+            { "innerDecl", [](const reflection::ClassInfo::InnerDeclInfo& obj) { return Reflect(obj.innerDecl); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::EnumItemInfo>
-        : TypeReflected<reflection::EnumItemInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::EnumItemInfo> : TypeReflected<reflection::EnumItemInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"itemName",
-             [](const reflection::EnumItemInfo &obj) {
-                 return Reflect(obj.itemName);
-             }},
-            {"itemValue",
-             [](const reflection::EnumItemInfo &obj) {
-                 return Reflect(obj.itemValue);
-             }},
-            {"location",
-             [](const reflection::EnumItemInfo &obj) {
-                 return Reflect(obj.location);
-             }},
+            { "itemName", [](const reflection::EnumItemInfo& obj) { return Reflect(obj.itemName); } },
+            { "itemValue", [](const reflection::EnumItemInfo& obj) { return Reflect(obj.itemValue); } },
+            { "location", [](const reflection::EnumItemInfo& obj) { return Reflect(obj.location); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::EnumInfo>
-        : TypeReflected<reflection::EnumInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::EnumInfo> : TypeReflected<reflection::EnumInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"fullQualifiedName",
-             [](const reflection::EnumInfo &obj) {
-                 return Reflect(obj.GetFullQualifiedName());
-             }},
-            {"isScoped",
-             [](const reflection::EnumInfo &obj) { return Reflect(obj.isScoped); }},
-            {"items",
-             [](const reflection::EnumInfo &obj) { return Reflect(obj.items); }},
-            {"location",
-             [](const reflection::EnumInfo &obj) { return Reflect(obj.location); }},
-            {"name",
-             [](const reflection::EnumInfo &obj) { return Reflect(obj.name); }},
-            {"namespaceQualifier",
-             [](const reflection::EnumInfo &obj) {
-                 return Reflect(obj.namespaceQualifier);
-             }},
-            {"scopedName",
-             [](const reflection::EnumInfo &obj) {
-                 return Reflect(obj.GetScopedName());
-             }},
-            {"scopeSpecifier",
-             [](const reflection::EnumInfo &obj) {
-                 return Reflect(obj.scopeSpecifier);
-             }},
+            { "fullQualifiedName", [](const reflection::EnumInfo& obj) { return Reflect(obj.GetFullQualifiedName()); } },
+            { "isScoped", [](const reflection::EnumInfo& obj) { return Reflect(obj.isScoped); } },
+            { "items", [](const reflection::EnumInfo& obj) { return Reflect(obj.items); } },
+            { "location", [](const reflection::EnumInfo& obj) { return Reflect(obj.location); } },
+            { "name", [](const reflection::EnumInfo& obj) { return Reflect(obj.name); } },
+            { "namespaceQualifier", [](const reflection::EnumInfo& obj) { return Reflect(obj.namespaceQualifier); } },
+            { "scopedName", [](const reflection::EnumInfo& obj) { return Reflect(obj.GetScopedName()); } },
+            { "scopeSpecifier", [](const reflection::EnumInfo& obj) { return Reflect(obj.scopeSpecifier); } },
         };
 
         return accessors;
     }
 };
-template <>
-struct TypeReflection<reflection::NamespaceInfo>
-        : TypeReflected<reflection::NamespaceInfo> {
-    static auto &GetAccessors() {
+template<>
+struct TypeReflection<reflection::NamespaceInfo> : TypeReflected<reflection::NamespaceInfo>
+{
+    static auto& GetAccessors()
+    {
         static std::unordered_map<std::string, FieldAccessor> accessors = {
-            {"classes",
-             [](const reflection::NamespaceInfo &obj) {
-                 return Reflect(obj.classes);
-             }},
-            {"enums",
-             [](const reflection::NamespaceInfo &obj) {
-                 return Reflect(obj.enums);
-             }},
-            {"fullQualifiedName",
-             [](const reflection::NamespaceInfo &obj) {
-                 return Reflect(obj.GetFullQualifiedName());
-             }},
-            {"innerNamespaces",
-             [](const reflection::NamespaceInfo &obj) {
-                 return Reflect(obj.innerNamespaces);
-             }},
-            {"isRootNamespace",
-             [](const reflection::NamespaceInfo &obj) {
-                 return Reflect(obj.isRootNamespace);
-             }},
-            {"name",
-             [](const reflection::NamespaceInfo &obj) {
-                 return Reflect(obj.name);
-             }},
-            {"namespaceQualifier",
-             [](const reflection::NamespaceInfo &obj) {
-                 return Reflect(obj.namespaceQualifier);
-             }},
-            {"scopedName",
-             [](const reflection::NamespaceInfo &obj) {
-                 return Reflect(obj.GetScopedName());
-             }},
-            {"scopeSpecifier",
-             [](const reflection::NamespaceInfo &obj) {
-                 return Reflect(obj.scopeSpecifier);
-             }},
+            { "classes", [](const reflection::NamespaceInfo& obj) { return Reflect(obj.classes); } },
+            { "enums", [](const reflection::NamespaceInfo& obj) { return Reflect(obj.enums); } },
+            { "fullQualifiedName", [](const reflection::NamespaceInfo& obj) { return Reflect(obj.GetFullQualifiedName()); } },
+            { "innerNamespaces", [](const reflection::NamespaceInfo& obj) { return Reflect(obj.innerNamespaces); } },
+            { "isRootNamespace", [](const reflection::NamespaceInfo& obj) { return Reflect(obj.isRootNamespace); } },
+            { "name", [](const reflection::NamespaceInfo& obj) { return Reflect(obj.name); } },
+            { "namespaceQualifier", [](const reflection::NamespaceInfo& obj) { return Reflect(obj.namespaceQualifier); } },
+            { "scopedName", [](const reflection::NamespaceInfo& obj) { return Reflect(obj.GetScopedName()); } },
+            { "scopeSpecifier", [](const reflection::NamespaceInfo& obj) { return Reflect(obj.scopeSpecifier); } },
         };
 
         return accessors;

@@ -238,18 +238,12 @@ bool MetaclassesGenerator::Validate()
 
 void MetaclassesGenerator::WriteHeaderContent(codegen::CppSourceStream& hdrOs)
 {
-    jinja2::Template tpl(&m_templateEnv);
-    tpl.Load(g_metaclassHdrTemplate);
-
     jinja2::ValuesMap params = {
-        {"inputFiles", jinja2::Reflect(m_options.inputFiles)},
         {"headerGuard", GetHeaderGuard(m_options.outputHeaderName)},
         {"rootNamespace", jinja2::Reflect(m_implNamespaces.GetRootNamespace())}
     };
 
-    SetupCommonTemplateParams(params);
-
-    tpl.Render(hdrOs, params);
+    RenderStringTemplate(g_metaclassHdrTemplate, hdrOs, params);
 }
 
 } // codegen

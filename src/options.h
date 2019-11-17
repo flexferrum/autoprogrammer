@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <map>
 
 namespace codegen
 {
@@ -25,7 +26,8 @@ enum class GeneratorId
     PimplGen,
     Jinja2ReflectGen,
     TestsGen,
-    MetaclassesGen
+    MetaclassesGen,
+    SerializationGen
 };
 
 enum class TestEngine
@@ -59,6 +61,10 @@ struct Options
     std::string fileToUpdate;
     std::string formatStyleName;
     std::string formatStyleConfig;
+    std::vector<std::string> templateDirs;
+    std::string templateName;
+    std::string templateJsonParams;
+    std::map<std::string, std::string> templateParams;
     bool debugMode = false;
     Standard targetStandard = Standard::Auto;
     TestGenOptions testGenOptions;

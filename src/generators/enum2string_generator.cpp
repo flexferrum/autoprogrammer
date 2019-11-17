@@ -1,8 +1,9 @@
 #include "enum2string_generator.h"
-#include "options.h"
+
 #include "ast_reflector.h"
 #include "ast_utils.h"
 #include "jinja2_reflection.h"
+#include "options.h"
 
 #include <clang/ASTMatchers/ASTMatchers.h>
 
@@ -14,14 +15,14 @@ namespace codegen
 {
 namespace
 {
-DeclarationMatcher enumMatcher =
-        enumDecl().bind("enum");
+DeclarationMatcher enumMatcher = enumDecl().bind("enum");
 
 auto g_enum2stringTemplate =
-R"(
+  R"(
 {% extends "header_skeleton.j2tpl" %}
 {% block generator_headers %}
  #include <flex_lib/stringized_enum.h>
+
  #include <algorithm>
  #include <utility>
 {% endblock %}
@@ -82,18 +83,17 @@ inline std::string to_string({{enum.fullQualifiedName}} e)
 {% endblock %}
 )";
 }
-
-Enum2StringGenerator::Enum2StringGenerator(const Options &opts)
+Enum2StringGenerator::Enum2StringGenerator(const Options& opts)
     : BasicGenerator(opts)
 {
 }
 
-void Enum2StringGenerator::SetupMatcher(clang::ast_matchers::MatchFinder &finder, clang::ast_matchers::MatchFinder::MatchCallback *defaultCallback)
+void Enum2StringGenerator::SetupMatcher(clang::ast_matchers::MatchFinder& finder, clang::ast_matchers::MatchFinder::MatchCallback* defaultCallback)
 {
     finder.addMatcher(enumMatcher, defaultCallback);
 }
 
-void Enum2StringGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::MatchResult &matchResult)
+void Enum2StringGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::MatchResult& matchResult)
 {
     if (const clang::EnumDecl* decl = matchResult.Nodes.getNodeAs<clang::EnumDecl>("enum"))
     {
@@ -106,44 +106,29 @@ void Enum2StringGenerator::HandleMatch(const clang::ast_matchers::MatchFinder::M
     }
 }
 
-void Enum2StringGenerator::WriteHeaderPreamble(CppSourceStream &hdrOs)
+void Enum2StringGenerator::WriteHeaderPreamble(CppSourceStream& hdrOs)
 {
     jinja2::ValuesMap params = {
-        {"inputFiles", jinja2::Reflect(m_options.inputFiles)},
-        {"extraHeaders", jinja2::Reflect(m_options.extraHeaders)},
+        { "inputFiles", jinja2::Reflect(m_options.inputFiles) },
+        { "extraHeaders", jinja2::Reflect(m_options.extraHeaders) },
     };
     m_headerPreambleTpl.Render(hdrOs, params);
 }
 
-void Enum2StringGenerator::WriteHeaderPostamble(CppSourceStream &hdrOs)
+void Enum2StringGenerator::WriteHeaderPostamble(CppSourceStream& hdrOs)
 {
-//    hdrOs << out::scope_exit;
+    //    hdrOs << out::scope_exit;
 }
 
-void Enum2StringGenerator::WriteHeaderContent(CppSourceStream &hdrOs)
+void Enum2StringGenerator::WriteHeaderContent(CppSourceStream& hdrOs)
 {
-    jinja2::Template tpl(&m_templateEnv);
-    auto parse_res = tpl.Load(g_enum2stringTemplate);
-    if (!parse_res)
-    {
-        Report(MessageType::Fatal, "", 0, 0, "Template load error: " + parse_res.error().ToString());
-        return;
-    }
+    jinja2::ValuesMap params = { { "headerGuard", GetHeaderGuard(m_options.outputHeaderName) },
+                                 { "rootNamespace", jinja2::Reflect(m_namespaces.GetRootNamespace()) } };
 
-    jinja2::ValuesMap params = {
-        {"inputFiles", jinja2::Reflect(m_options.inputFiles)},
-        {"headerGuard", GetHeaderGuard(m_options.outputHeaderName)},
-        {"rootNamespace", jinja2::Reflect(m_namespaces.GetRootNamespace())}
-    };
-
-    SetupCommonTemplateParams(params);
-
-    auto render_res = tpl.Render(hdrOs, params);
-    if (!render_res)
-    {
-        Report(MessageType::Fatal, "", 0, 0, "Template render error: " + render_res.error().ToString());
-        return;
-    }
+    if (m_templateName.empty())
+        RenderStringTemplate(g_enum2stringTemplate, hdrOs, params);
+    else
+        RenderTemplate(hdrOs, params);
 }
 } // codegen
 

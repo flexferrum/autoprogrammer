@@ -20,13 +20,15 @@ public:
 
     // GeneratorBase interface
     void OnCompilationStarted() override;
+    void SetupTemplate(jinja2::TemplateEnv* env, std::string templateName);
     bool Validate() override;
     bool GenerateOutput(const clang::ASTContext* astContext, clang::SourceManager* sourceManager) override;
 
 protected:
     const Options& m_options;
     jinja2::MemoryFileSystem m_inMemoryTemplates;
-    jinja2::TemplateEnv m_templateEnv;
+    jinja2::TemplateEnv* m_templateEnv = nullptr;
+    std::string m_templateName;
 
     bool IsFromInputFiles(const clang::SourceLocation& loc, const clang::ASTContext* context) const;
     bool IsFromUpdatingFile(const clang::SourceLocation& loc, const clang::ASTContext* context) const;
@@ -42,7 +44,9 @@ protected:
     void WriteExtraHeaders(CppSourceStream& os);
 
     std::string GetHeaderGuard(const std::string& filePath);
-    void SetupCommonTemplateParams(jinja2::ValuesMap& params);
+    void RenderTemplate(std::ostream& os, jinja2::ValuesMap& params);
+    void RenderStringTemplate(const char* tplString, std::ostream& os, jinja2::ValuesMap& params);
+    void DoTemplateRender(jinja2::Template& tpl, std::ostream& os, jinja2::ValuesMap& params);
 
     void Report(MessageType type, const std::string fileName, unsigned line, unsigned col, std::string message) override;
     void Report(MessageType type, const reflection::SourceLocation& loc, std::string message) override;

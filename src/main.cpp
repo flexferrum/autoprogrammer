@@ -1,21 +1,26 @@
-#include <clang/Tooling/Tooling.h>
-#include <clang/Tooling/CommonOptionsParser.h>
-#include <clang/ASTMatchers/ASTMatchers.h>
+#include "console_writer.h"
+#include "generator_base.h"
+#include "options.h"
+
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/find.hpp>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
+#include <clang/ASTMatchers/ASTMatchers.h>
 #include <clang/Basic/Diagnostic.h>
+#include <clang/Tooling/CommonOptionsParser.h>
+#include <clang/Tooling/Tooling.h>
+#include <jinja2cpp/reflected_value.h>
+#include <jinja2cpp/template.h>
+#include <jinja2cpp/template_env.h>
 #include <llvm/Support/CommandLine.h>
-#include <llvm/Support/JamCRC.h>
-#include <llvm/Support/Path.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/FileUtilities.h>
+#include <llvm/Support/JamCRC.h>
+#include <llvm/Support/Path.h>
 
-#include <iostream>
-#include <fstream>
 #include <algorithm>
-
-#include "options.h"
-#include "generator_base.h"
-#include "console_writer.h"
+#include <fstream>
+#include <iostream>
 
 using namespace llvm;
 
@@ -24,14 +29,14 @@ extern codegen::GeneratorPtr CreatePimplGen(const codegen::Options&);
 extern codegen::GeneratorPtr CreateJinja2ReflectGen(const codegen::Options&);
 extern codegen::GeneratorPtr CreateTestGen(const codegen::Options&);
 extern codegen::GeneratorPtr CreateMetaclassesGen(const codegen::Options&);
+extern codegen::GeneratorPtr CreateSerializationGen(const codegen::Options&);
 
 namespace
 {
 // Define code generation tool option category
 cl::OptionCategory CodeGenCategory("Code generator options");
 
-enum class TestGenOptions
-{
+enum class TestGenOptions {
     GenerateMocks,
     DontGenerateMocks,
     TestPrivateMethods,
@@ -49,60 +54,95 @@ enum class TestGenOptions
 };
 
 // Define the generation mode
-cl::opt<codegen::GeneratorId> GenerationMode(cl::desc("Choose generation mode:"),
-  cl::values(
-        clEnumValN(codegen::GeneratorId::Enum2StringGen, "gen-enum2string" , "Enum2string conversion generation"),
-        clEnumValN(codegen::GeneratorId::PimplGen, "gen-pimpl" , "Pimpl wrapper classes generation"),
-        clEnumValN(codegen::GeneratorId::Jinja2ReflectGen, "gen-jinja2reflect" , "Jinja2 reflection generation"),
-        clEnumValN(codegen::GeneratorId::TestsGen, "gen-tests" , "Test cases generation"),
-        clEnumValN(codegen::GeneratorId::MetaclassesGen, "gen-metaclasses" , "Test cases generation")
-    ), cl::Required, cl::cat(CodeGenCategory));
+cl::opt<codegen::GeneratorId>
+  GenerationMode(cl::desc("Choose generation mode:"),
+                 cl::values(clEnumValN(codegen::GeneratorId::Enum2StringGen, "gen-enum2string", "Enum2string conversion generation"),
+                            clEnumValN(codegen::GeneratorId::PimplGen, "gen-pimpl", "Pimpl wrapper classes generation"),
+                            clEnumValN(codegen::GeneratorId::Jinja2ReflectGen, "gen-jinja2reflect", "Jinja2 reflection generation"),
+                            clEnumValN(codegen::GeneratorId::TestsGen, "gen-tests", "Test cases generation"),
+                            clEnumValN(codegen::GeneratorId::MetaclassesGen, "gen-metaclasses", "Test cases generation"),
+                            clEnumValN(codegen::GeneratorId::SerializationGen, "gen-serialization", "Serialization generation")),
+                 cl::Required,
+                 cl::cat(CodeGenCategory));
 
 // Define options for output file names
 // cl::opt<std::string> OutputFilename("o", cl::desc("Specify output filename"), cl::value_desc("filename"), cl::cat(CodeGenCategory));
 cl::opt<std::string> OutputHeaderName("ohdr", cl::desc("Specify output header filename"), cl::value_desc("filename"), cl::cat(CodeGenCategory));
 cl::opt<std::string> OutputSourceName("osrc", cl::desc("Specify output source filename"), cl::value_desc("filename"), cl::cat(CodeGenCategory));
 cl::opt<std::string> FileToUpdateName("update", cl::desc("Specify source filename for code update"), cl::value_desc("filename"), cl::cat(CodeGenCategory));
-cl::opt<bool> ShowClangErrors("show-clang-diag", cl::desc("Show clang diagnostic during file processing"), cl::value_desc("flag"), cl::init(false), cl::cat(CodeGenCategory));
+cl::opt<bool> ShowClangErrors("show-clang-diag",
+                              cl::desc("Show clang diagnostic during file processing"),
+                              cl::value_desc("flag"),
+                              cl::init(false),
+                              cl::cat(CodeGenCategory));
 cl::opt<bool> RunInDebugMode("debug-mode", cl::desc("Show tool debug output"), cl::value_desc("flag"), cl::init(false), cl::cat(CodeGenCategory));
-cl::list<std::string> ExtraHeaders("eh", cl::desc("Specify extra header files for include into generation result"), cl::value_desc("filename"), cl::ZeroOrMore, cl::cat(CodeGenCategory));
+cl::list<std::string> ExtraHeaders("eh",
+                                   cl::desc("Specify extra header files for include into generation result"),
+                                   cl::value_desc("filename"),
+                                   cl::ZeroOrMore,
+                                   cl::cat(CodeGenCategory));
 cl::list<std::string> InputFiles("input", cl::desc("Specify input files to process"), cl::value_desc("filename"), cl::ZeroOrMore, cl::cat(CodeGenCategory));
-cl::opt<std::string> FormatStyle("format-style", cl::desc("Specify style name or configuration file name for the formatting style"), cl::init("LLVM"), cl::value_desc("stylename or filename"), cl::cat(CodeGenCategory));
-cl::list<TestGenOptions> TestGenModes("test-gen-mode", cl::desc("Tune up tests generation modes"),
-  cl::values(
-        clEnumValN(TestGenOptions::GenerateMocks, "mocks" , "Generate mocks (default)"),
-        clEnumValN(TestGenOptions::DontGenerateMocks, "no-mocks" , "Don't generate mocks"),
-        clEnumValN(TestGenOptions::TestPrivateMethods, "testprivate" , "Test protected and private methods (default)"),
-        clEnumValN(TestGenOptions::DontTestPrivateMethods, "no-testprivate" , "Don't test protected and private methods"),
-        clEnumValN(TestGenOptions::TestTemplates, "templates" , "Test template classes and methods"),
-        clEnumValN(TestGenOptions::DontTestTemplates, "no-templates" , "Don't test template classes and methods (default)"),
-        clEnumValN(TestGenOptions::GenerateBasicPositive, "basic-positive" , "Generate basic positive test cases (default)"),
-        clEnumValN(TestGenOptions::DontGenerateBasicPositive, "no-basic-positive" , "Don't generate basic positive test cases"),
-        clEnumValN(TestGenOptions::GenerateBasicNegative, "basic-negative" , "Generate basic negative test cases (default)"),
-        clEnumValN(TestGenOptions::DontGenerateBasicNegative, "no-basic-negative" , "Don't generate basic negative test cases"),
-        clEnumValN(TestGenOptions::GenerateComplexPositive, "complex-positive" , "Generate complex positive test cases (default)"),
-        clEnumValN(TestGenOptions::DontGenerateComplexPositive, "no-complex-positive" , "Don't generate complex positive test cases"),
-        clEnumValN(TestGenOptions::GenerateComplexNegative, "complex-negative" , "Generate complex negative test cases (default)"),
-        clEnumValN(TestGenOptions::DontGenerateComplexNegative, "no-complex-negative" , "Don't generate complex negative test cases")
-    ), cl::ZeroOrMore, cl::CommaSeparated, cl::cat(CodeGenCategory));
-cl::list<std::string> ClassesToTest("test-class", cl::desc("Specify name of the class to test"), cl::value_desc("classname"), cl::ZeroOrMore, cl::CommaSeparated, cl::cat(CodeGenCategory));
+cl::opt<std::string> FormatStyle("format-style",
+                                 cl::desc("Specify style name or configuration file name for the formatting style"),
+                                 cl::init("LLVM"),
+                                 cl::value_desc("stylename or filename"),
+                                 cl::cat(CodeGenCategory));
+cl::list<std::string>
+  TemplateDirs("tpl-dir", cl::desc("Specify root directory for templates"), cl::value_desc("directory"), cl::ZeroOrMore, cl::cat(CodeGenCategory));
+cl::opt<std::string> TemplateName("tpl", cl::desc("Specify template for code generation"), cl::value_desc("template name"), cl::cat(CodeGenCategory));
+cl::opt<std::string> TemplateJsonParams("tpl-json-params",
+                                        cl::desc("Extra params for template generator which can be accessed inside the templates"),
+                                        cl::value_desc("path to json file"),
+                                        cl::cat(CodeGenCategory));
+cl::list<std::string>
+  TemplateParams("tpl-param", cl::desc("Extra parameters for template engine"), cl::value_desc("name=<value>"), cl::ZeroOrMore, cl::cat(CodeGenCategory));
+cl::list<TestGenOptions>
+  TestGenModes("test-gen-mode",
+               cl::desc("Tune up tests generation modes"),
+               cl::values(clEnumValN(TestGenOptions::GenerateMocks, "mocks", "Generate mocks (default)"),
+                          clEnumValN(TestGenOptions::DontGenerateMocks, "no-mocks", "Don't generate mocks"),
+                          clEnumValN(TestGenOptions::TestPrivateMethods, "testprivate", "Test protected and private methods (default)"),
+                          clEnumValN(TestGenOptions::DontTestPrivateMethods, "no-testprivate", "Don't test protected and private methods"),
+                          clEnumValN(TestGenOptions::TestTemplates, "templates", "Test template classes and methods"),
+                          clEnumValN(TestGenOptions::DontTestTemplates, "no-templates", "Don't test template classes and methods (default)"),
+                          clEnumValN(TestGenOptions::GenerateBasicPositive, "basic-positive", "Generate basic positive test cases (default)"),
+                          clEnumValN(TestGenOptions::DontGenerateBasicPositive, "no-basic-positive", "Don't generate basic positive test cases"),
+                          clEnumValN(TestGenOptions::GenerateBasicNegative, "basic-negative", "Generate basic negative test cases (default)"),
+                          clEnumValN(TestGenOptions::DontGenerateBasicNegative, "no-basic-negative", "Don't generate basic negative test cases"),
+                          clEnumValN(TestGenOptions::GenerateComplexPositive, "complex-positive", "Generate complex positive test cases (default)"),
+                          clEnumValN(TestGenOptions::DontGenerateComplexPositive, "no-complex-positive", "Don't generate complex positive test cases"),
+                          clEnumValN(TestGenOptions::GenerateComplexNegative, "complex-negative", "Generate complex negative test cases (default)"),
+                          clEnumValN(TestGenOptions::DontGenerateComplexNegative, "no-complex-negative", "Don't generate complex negative test cases")),
+               cl::ZeroOrMore,
+               cl::CommaSeparated,
+               cl::cat(CodeGenCategory));
+cl::list<std::string> ClassesToTest("test-class",
+                                    cl::desc("Specify name of the class to test"),
+                                    cl::value_desc("classname"),
+                                    cl::ZeroOrMore,
+                                    cl::CommaSeparated,
+                                    cl::cat(CodeGenCategory));
 cl::opt<std::string> TestFixtureName("test-fixture", cl::desc("Name of the test fixture"), cl::value_desc("classname"), cl::cat(CodeGenCategory));
 
-cl::opt<codegen::Standard> LangStandart("std", cl::desc("Choose the standard conformance for the generation results:"),
-  cl::values(
-        clEnumValN(codegen::Standard::Auto, "auto" , "Automatic detection (default)"),
-        clEnumValN(codegen::Standard::Cpp03, "c++03" , "C++ 2003 standard"),
-        clEnumValN(codegen::Standard::Cpp11, "c++11" , "C++ 2011 standard"),
-        clEnumValN(codegen::Standard::Cpp14, "c++14" , "C++ 2014 standard"),
-        clEnumValN(codegen::Standard::Cpp17, "c++17" , "C++ 2017 standard")
-    ), cl::Optional, cl::init(codegen::Standard::Auto), cl::cat(CodeGenCategory));
+cl::opt<codegen::Standard> LangStandart("std",
+                                        cl::desc("Choose the standard conformance for the generation results:"),
+                                        cl::values(clEnumValN(codegen::Standard::Auto, "auto", "Automatic detection (default)"),
+                                                   clEnumValN(codegen::Standard::Cpp03, "c++03", "C++ 2003 standard"),
+                                                   clEnumValN(codegen::Standard::Cpp11, "c++11", "C++ 2011 standard"),
+                                                   clEnumValN(codegen::Standard::Cpp14, "c++14", "C++ 2014 standard"),
+                                                   clEnumValN(codegen::Standard::Cpp17, "c++17", "C++ 2017 standard")),
+                                        cl::Optional,
+                                        cl::init(codegen::Standard::Auto),
+                                        cl::cat(CodeGenCategory));
 
-cl::opt<codegen::TestEngine> TestEngine("test-engine", cl::desc("Choose the destination test engine:"),
-  cl::values(
-        clEnumValN(codegen::TestEngine::GoogleTests, "gtest" , "Google test (default)"),
-        clEnumValN(codegen::TestEngine::CppUnit, "cppunit" , "CppUnit"),
-        clEnumValN(codegen::TestEngine::QtTest, "qttests" , "QtTests")
-    ), cl::Optional, cl::init(codegen::TestEngine::GoogleTests), cl::cat(CodeGenCategory));
+cl::opt<codegen::TestEngine> TestEngine("test-engine",
+                                        cl::desc("Choose the destination test engine:"),
+                                        cl::values(clEnumValN(codegen::TestEngine::GoogleTests, "gtest", "Google test (default)"),
+                                                   clEnumValN(codegen::TestEngine::CppUnit, "cppunit", "CppUnit"),
+                                                   clEnumValN(codegen::TestEngine::QtTest, "qttests", "QtTests")),
+                                        cl::Optional,
+                                        cl::init(codegen::TestEngine::GoogleTests),
+                                        cl::cat(CodeGenCategory));
 
 // Define common help message printer
 cl::extrahelp CommonHelp(clang::tooling::CommonOptionsParser::HelpMessage);
@@ -110,11 +150,9 @@ cl::extrahelp CommonHelp(clang::tooling::CommonOptionsParser::HelpMessage);
 cl::extrahelp MoreHelp("\nCode generation tool help text...");
 
 std::vector<std::pair<codegen::GeneratorId, codegen::GeneratorFactory>> GenFactories = {
-    {codegen::GeneratorId::Enum2StringGen, CreateEnum2StringGen},
-    {codegen::GeneratorId::PimplGen, CreatePimplGen},
-    {codegen::GeneratorId::Jinja2ReflectGen, CreateJinja2ReflectGen},
-    {codegen::GeneratorId::TestsGen, CreateTestGen},
-    {codegen::GeneratorId::MetaclassesGen, CreateMetaclassesGen},
+    { codegen::GeneratorId::Enum2StringGen, CreateEnum2StringGen },     { codegen::GeneratorId::PimplGen, CreatePimplGen },
+    { codegen::GeneratorId::Jinja2ReflectGen, CreateJinja2ReflectGen }, { codegen::GeneratorId::TestsGen, CreateTestGen },
+    { codegen::GeneratorId::MetaclassesGen, CreateMetaclassesGen },     { codegen::GeneratorId::SerializationGen, CreateSerializationGen },
 };
 }
 
@@ -129,10 +167,7 @@ public:
     {
     }
 
-    void onStartOfTranslationUnit()
-    {
-        m_generator->OnCompilationStarted();
-    }
+    void onStartOfTranslationUnit() { m_generator->OnCompilationStarted(); }
 
     void run(const clang::ast_matchers::MatchFinder::MatchResult& result)
     {
@@ -150,7 +185,7 @@ public:
             m_hasErrors = !m_generator->GenerateOutput(m_astContext, m_sourceManager);
     }
 
-    bool HasErrors() const {return m_hasErrors;}
+    bool HasErrors() const { return m_hasErrors; }
 
 private:
     Options m_options;
@@ -161,6 +196,22 @@ private:
 };
 } // codegen
 
+void ParseTemplateParams(codegen::Options& options, const std::vector<std::string>& params)
+{
+    for (auto& param : params)
+    {
+        auto findRange = boost::algorithm::find_first(param, "=");
+        if (findRange.begin() == param.end())
+            options.templateParams[param] = "";
+        else
+        {
+            auto name = std::string(param.begin(), findRange.begin());
+            auto value = std::string(findRange.end(), param.end());
+            options.templateParams[name] = value;
+        }
+    }
+}
+
 void ParseOptions(codegen::Options& options, clang::tooling::CommonOptionsParser& optionsParser)
 {
     options.generatorType = GenerationMode;
@@ -169,6 +220,12 @@ void ParseOptions(codegen::Options& options, clang::tooling::CommonOptionsParser
     options.targetStandard = LangStandart;
     options.extraHeaders = ExtraHeaders;
     options.debugMode = RunInDebugMode;
+    options.templateName = TemplateName;
+    options.templateDirs = TemplateDirs;
+    options.templateJsonParams = TemplateJsonParams;
+    std::vector<std::string> tplParams = TemplateParams;
+    if (!tplParams.empty())
+        ParseTemplateParams(options, tplParams);
     if (llvm::sys::fs::exists(static_cast<std::string>(FormatStyle)))
         options.formatStyleConfig = FormatStyle;
     else
@@ -236,18 +293,18 @@ void PrepareCommandLine(int argc, const char** argv, std::vector<const char*>& a
 
     // Skip the tool-specific args
     int cur = 0;
-    for (; cur < argc && strcmp(argv[cur], "--"); ++ cur)
+    for (; cur < argc && strcmp(argv[cur], "--"); ++cur)
         args.push_back(argv[cur]);
 
     args.push_back(inputFileName.c_str());
     if (cur == argc)
         return;
 
-    args.push_back(argv[cur ++]);
+    args.push_back(argv[cur++]);
     args.push_back("-DFL_CODEGEN_INVOKED_");
     // TODO: Add additional options
 
-    for (; cur < argc; ++ cur)
+    for (; cur < argc; ++cur)
         args.push_back(argv[cur]);
 }
 
@@ -260,6 +317,37 @@ std::string WriteInputFile(std::ostream& tempFile, const std::string& inputFile)
     tempFile << "#include \"" << result << "\"\n";
 
     return result;
+}
+
+void SetupJinja2Templates(jinja2::TemplateEnv& env, codegen::Options& options)
+{
+    using namespace jinja2;
+
+    for (auto& rootDir : options.templateDirs)
+    {
+        auto fsHandler = std::make_shared<RealFileSystem>(rootDir);
+        env.AddFilesystemHandler("", fsHandler);
+    }
+
+    auto settings = env.GetSettings();
+    settings.lstripBlocks = true;
+    settings.trimBlocks = true;
+    settings.useLineStatements = false;
+    settings.extensions.Do = true;
+    env.SetSettings(settings);
+
+    ValuesMap optionsMap;
+    ValuesMap paramsMap;
+
+    optionsMap["input_files"] = Reflect(&options.inputFiles);
+    optionsMap["extra_headers"] = Reflect(&options.extraHeaders);
+    optionsMap["debug_mode"] = options.debugMode;
+
+    for (auto& p : options.templateParams)
+        paramsMap[p.first] = p.second;
+
+    env.AddGlobal("options", std::move(optionsMap));
+    env.AddGlobal("env", std::move(paramsMap));
 }
 
 int main(int argc, const char** argv)
@@ -280,10 +368,10 @@ int main(int argc, const char** argv)
 
     codegen::Options options;
     ParseOptions(options, optionsParser);
-    
+
     codegen::ConsoleWriter writer(options.debugMode, &std::cout);
     options.consoleWriter = &writer;
-    
+
     if (!ShowClangErrors)
         tool.setDiagnosticConsumer(&diagConsumer);
 
@@ -293,11 +381,16 @@ int main(int argc, const char** argv)
         writer.DebugStream() << "\t" << opt << std::endl;
     }
 
-    auto genFactory = std::find_if(begin(GenFactories), end(GenFactories), [type = options.generatorType](auto& p) {return p.first == type && p.second != nullptr;});
+    jinja2::TemplateEnv env;
+    SetupJinja2Templates(env, options);
 
-    if(genFactory == end(GenFactories))
+    auto genFactory =
+      std::find_if(begin(GenFactories), end(GenFactories), [type = options.generatorType](auto& p) { return p.first == type && p.second != nullptr; });
+
+    if (genFactory == end(GenFactories))
     {
-        writer.ConsoleStream(codegen::MessageType::Fatal) << "Generator is not defined for generation mode '" << GenerationMode.ValueStr.str() << "'" << std::endl;
+        writer.ConsoleStream(codegen::MessageType::Fatal)
+          << "Generator is not defined for generation mode '" << GenerationMode.ValueStr.str() << "'" << std::endl;
         return -1;
     }
 
@@ -305,7 +398,8 @@ int main(int argc, const char** argv)
 
     if (!generator)
     {
-        writer.ConsoleStream(codegen::MessageType::Fatal) << "Failed to create generator for generation mode '" << GenerationMode.ValueStr.str() << "'" << std::endl;
+        writer.ConsoleStream(codegen::MessageType::Fatal)
+          << "Failed to create generator for generation mode '" << GenerationMode.ValueStr.str() << "'" << std::endl;
         return -1;
     }
 
@@ -322,7 +416,7 @@ int main(int argc, const char** argv)
     codegen::MatchHandler handler(options, generator.get());
     MatchFinder finder;
     generator->SetupMatcher(finder, &handler);
-
+    generator->SetupTemplate(&env, options.templateName);
 
     // Run tool for the specified input files
     tool.run(newFrontendActionFactory(&finder).get());

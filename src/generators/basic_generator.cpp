@@ -30,11 +30,11 @@ R"(
  #pragma once
 {% endif %}
 
-{% for fileName in inputFiles | sort %}
+{% for fileName in options.input_files | sort %}
  #include "{{fileName}}"
 {% endfor %}
 
-{% for fileName in extraHeaders | sort %}
+{% for fileName in options.extra_headers | sort %}
 {% if fileName is startsWith('<') %}
  #include {{fileName}}
 {% else %}
@@ -75,6 +75,14 @@ void BasicGenerator::OnCompilationStarted()
 
 }
 
+void BasicGenerator::SetupTemplate(jinja2::TemplateEnv* env, std::string templateName) 
+{
+    m_templateEnv = env;
+    m_templateName = templateName;
+    m_templateEnv->AddFilesystemHandler(std::string(), m_inMemoryTemplates);
+    m_inMemoryTemplates.AddFile("header_skeleton.j2tpl", g_headerSkeleton);
+}
+
 bool BasicGenerator::Validate()
 {
     return true;
@@ -108,16 +116,6 @@ FileState OpenGeneratedFile(const std::string& fileName, std::ofstream& fileStre
 
 bool BasicGenerator::GenerateOutput(const clang::ASTContext* astContext, clang::SourceManager* sourceManager)
 {
-    auto settings = m_templateEnv.GetSettings();
-    settings.lstripBlocks = true;
-    settings.trimBlocks = true;
-    settings.useLineStatements = false;
-    settings.extensions.Do = true;
-    m_templateEnv.SetSettings(settings);
-
-    m_templateEnv.AddFilesystemHandler(std::string(), m_inMemoryTemplates);
-    m_inMemoryTemplates.AddFile("header_skeleton.j2tpl", g_headerSkeleton);
-
     if (!clang::format::getPredefinedStyle(m_options.formatStyleName, clang::format::FormatStyle::LK_Cpp, &m_formatStyle))
     {
         std::cout << "Can't load style with name: " << m_options.formatStyleName << std::endl;
@@ -229,9 +227,40 @@ std::string BasicGenerator::GetHeaderGuard(const std::string& filePath)
     return str.str();
 }
 
-void BasicGenerator::SetupCommonTemplateParams(jinja2::ValuesMap& params)
+void BasicGenerator::RenderTemplate(std::ostream& os, jinja2::ValuesMap& params)
 {
-    params["extraHeaders"] = jinja2::Reflect(m_options.extraHeaders);
+    auto loadRes = m_templateEnv->LoadTemplate(m_templateName);
+    if (!loadRes)
+    {
+        Report(MessageType::Fatal, "", 0, 0, "Template load error: " + loadRes.error().ToString());
+        return;
+    }
+
+    DoTemplateRender(loadRes.value(), os, params);
+}
+
+void BasicGenerator::RenderStringTemplate(const char* tplString, std::ostream& os, jinja2::ValuesMap& params)
+{
+    jinja2::Template tpl(m_templateEnv);
+
+    auto loadRes = tpl.Load(tplString);
+    if (!loadRes)
+    {
+        Report(MessageType::Fatal, "", 0, 0, "Template load error: " + loadRes.error().ToString());
+        return;
+    }
+
+    DoTemplateRender(tpl, os, params);
+}
+
+void BasicGenerator::DoTemplateRender(jinja2::Template& tpl, std::ostream& os, jinja2::ValuesMap& params)
+{
+    auto renderRes = tpl.Render(os, params);
+    if (!renderRes)
+    {
+        Report(MessageType::Fatal, "", 0, 0, "Template render error: " + renderRes.error().ToString());
+        return;
+    }
 }
 
 void BasicGenerator::Report(MessageType type, const std::string fileName, unsigned line, unsigned col, std::string message)

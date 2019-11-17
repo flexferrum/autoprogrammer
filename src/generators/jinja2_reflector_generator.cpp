@@ -259,9 +259,6 @@ void Jinja2ReflectorGenerator::WriteHeaderPostamble(CppSourceStream& hdrOs)
 
 void Jinja2ReflectorGenerator::WriteHeaderContent(CppSourceStream& hdrOs)
 {
-    jinja2::Template tpl(&m_templateEnv);
-    tpl.Load(g_template);
-
     jinja2::ValuesMap params = {
         {"inputFiles", jinja2::Reflect(m_options.inputFiles)},
         {"headerGuard", GetHeaderGuard(m_options.outputHeaderName)},
@@ -269,9 +266,7 @@ void Jinja2ReflectorGenerator::WriteHeaderContent(CppSourceStream& hdrOs)
         {"reflectedEnums", jinja2::Reflect(m_reflectedEnums)}
     };
 
-    SetupCommonTemplateParams(params);
-
-    tpl.Render(hdrOs, params);
+    RenderStringTemplate(g_template, hdrOs, params);
 }
 
 

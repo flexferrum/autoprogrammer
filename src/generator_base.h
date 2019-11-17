@@ -4,6 +4,8 @@
 #include "options.h"
 
 #include <clang/ASTMatchers/ASTMatchFinder.h>
+#include <jinja2cpp/template_env.h>
+#include <jinja2cpp/template.h>
 
 namespace codegen
 {
@@ -13,6 +15,7 @@ public:
     virtual ~GeneratorBase() {}
 
     virtual void SetupMatcher(clang::ast_matchers::MatchFinder& finder, clang::ast_matchers::MatchFinder::MatchCallback* defaultCallback) = 0;
+    virtual void SetupTemplate(jinja2::TemplateEnv* env, std::string templateName) = 0;
     virtual void OnCompilationStarted() = 0;
     virtual void HandleMatch(const clang::ast_matchers::MatchFinder::MatchResult& matchResult) = 0;
     virtual bool Validate() = 0;
