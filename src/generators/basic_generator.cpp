@@ -21,8 +21,31 @@
 
 namespace codegen
 {
-auto g_headerSkeleton =
+auto g_commonMacros = 
 R"(
+{% macro ProcessTypedMember(type, macroPrefix, extraVal) %}
+	{% if type.type.isNoType %}
+	{% elif type.type.isBuiltinType %}
+	{{ extraVal | applymacro(macro=macroPrefix + 'BuiltinType', type ) }}
+	{% elif type.type.isRecordType %}
+	{{ extraVal | applymacro(macro=macroPrefix + 'RecordType', type ) }}
+	{% elif type.type.isTemplateType %}
+	{{ extraVal | applymacro(macro=macroPrefix + 'TemplateType', type ) }}
+	{% elif type.type.isWellKnownType %}
+	{{ extraVal | applymacro(macro=macroPrefix + 'WellKnownType', type ) }}
+	{% elif type.type.isArrayType %}
+	{{ extraVal | applymacro(macro=macroPrefix + 'ArrayType', type, type.type.dims, type.type.itemType ) }}
+	{% elif type.type.isEnumType %}
+	{{ extraVal | applymacro(macro=macroPrefix + 'EnumType', type ) }}
+	{% else %}
+	{{ extraVal | applymacro(macro=macroPrefix + 'GenericType', type) }}
+	{% endif %}
+{% endmacro %}
+
+)";
+
+auto g_headerSkeleton =
+  R"(
 {% if headerGuard is defined %}
  #ifndef {{headerGuard}}
  #define {{headerGuard}}
@@ -81,6 +104,7 @@ void BasicGenerator::SetupTemplate(jinja2::TemplateEnv* env, std::string templat
     m_templateName = templateName;
     m_templateEnv->AddFilesystemHandler(std::string(), m_inMemoryTemplates);
     m_inMemoryTemplates.AddFile("header_skeleton.j2tpl", g_headerSkeleton);
+    m_inMemoryTemplates.AddFile("common_macros.j2tpl", g_commonMacros);
 }
 
 bool BasicGenerator::Validate()

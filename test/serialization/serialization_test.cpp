@@ -16,11 +16,28 @@ TEST(JsonSerialization, SimpleSerialization)
 
     JsonSerialize(doc, s, doc.GetAllocator());
 
-    EXPECT_EQ(s.intField, doc["intField"]);
-    EXPECT_EQ(s.strField.c_str(), doc["strField"]);
+    EXPECT_EQ(s.intField, doc["intField"].GetInt());
+    EXPECT_STREQ(s.strField.c_str(), doc["strField"].GetString());
     EXPECT_STREQ("Item1", doc["enumField"].GetString());
 }
 
+TEST(JsonSerialization, SerializationDeserialization)
+{
+    SimpleStruct s;
+    s.intField = 100500;
+    s.strField = "Hello World!";
+    s.enumField = Enum::Item1;
+
+    rapidjson::Document doc;
+
+    JsonSerialize(doc, s, doc.GetAllocator());
+    SimpleStruct s2;
+    JsonDeserialize(doc, s2);
+
+    EXPECT_EQ(s.intField, s2.intField);
+    EXPECT_EQ(s.strField, s2.strField);
+    EXPECT_EQ(s.enumField, s2.enumField);
+}
 
 int main(int argc, char* argv[])
 {

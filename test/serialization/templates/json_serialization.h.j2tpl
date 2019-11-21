@@ -1,31 +1,16 @@
-{% macro ProcessTypedMember(type, macroPrefix, extraVal) %}
-	{% if type.type.isNoType %}
-	{% elif type.type.isBuiltinType %}
-	// invoke {{ macroPrefix + 'BuiltinType' }}
-	{{ extraVal | applymacro(macro=macroPrefix + 'BuiltinType', type ) }}
-	{% elif type.type.isRecordType %}
-	// invoke {{ macroPrefix + 'RecordType' }}
-	{{ extraVal | applymacro(macro=macroPrefix + 'RecordType', type ) }}
-	{% elif type.type.isTemplateType %}
-	// invoke {{ macroPrefix + 'TemplateType' }}
-	{{ extraVal | applymacro(macro=macroPrefix + 'TemplateType', type ) }}
-	{% elif type.type.isWellKnownType %}
-	// invoke {{ macroPrefix + 'WellKnownType' }}
-	{{ extraVal | applymacro(macro=macroPrefix + 'WellKnownType', type ) }}
-	{% elif type.type.isArrayType %}
-	// invoke {{ macroPrefix + 'ArrayType' }}
-	{{ extraVal | applymacro(macro=macroPrefix + 'ArrayType', type, type.type.dims, type.type.itemType ) }}
-	{% elif type.type.isEnumType %}
-	// invoke {{ macroPrefix + 'EnumType' }}
-	{{ extraVal | applymacro(macro=macroPrefix + 'EnumType', type ) }}
-	{% else %}
-	// invoke {{ macroPrefix + 'GenericType' }}
-	{{ extraVal | applymacro(macro=macroPrefix + 'GenericType', type) }}
-	{% endif %}
+{% import "common_macros.j2tpl" as common with context %}
+{% macro SerializeBuiltinType(valueRef, typeInfo) %}
+    value = {{ valueRef }};
 {% endmacro %}
 
-{% macro SerializeBuiltinType(valueRef, typeInfo) %}
-value = {{ valueRef }};
+{% macro DeserializeBuiltinType(valueRef, typeInfo) %}
+    {% set type=typeInfo.type.type %}
+    {% if type == "Bool" %}
+    {{ valueRef }} = value.GetBool();
+    {% elif type == "Short" or type == "Int" or type == "Long" or type == "LongLong" %}
+    {{ valueRef }} = value.GetInt{{ '64' if typeInfo.type.bits >= 64 }}();
+    {% else %}
+    {% endif %}
 {% endmacro %}
 
 {% macro SerializeWellKnownType(valueRef, typeInfo) %}
@@ -38,8 +23,24 @@ value = {{ valueRef }};
 		{		
 			auto& array = value;
 			Value value;
-			{{ typeInfo.type.arguments[0] | applymacro(macro='ProcessTypedMember', 'Serialize', 'v') }}
+			{{ common.ProcessTypedMember(typeInfo.type.arguments[0], 'Serialize', 'v') }}
 			array.PushBack(value.Move(), allocator);
+		}
+	{% else %}
+	// Make handler for well-known type {{ typeInfo.type.type }}
+	{% endif %}
+{% endmacro %}
+
+{% macro DeserializeWellKnownType(valueRef, typeInfo) %}
+	{% if typeInfo.type.type == 'StdString' %}
+		{{ valueRef }} = value.GetString();
+	{% elif typeInfo.type.type == 'StdVector' or typeInfo.type.type == 'StdArray' or typeInfo.type.type == 'StdList' or typeInfo.type.type == 'StdSet' %}
+	    auto& array = value.GetArray();
+		for (auto& value : array)
+		{		
+            {{ typeInfo.type.arguments[0].printedName }} itemValue;
+			{{ common.ProcessTypedMember(typeInfo.type.arguments[0], 'Deserialize', 'itemValue') }}
+			{{ valueRef }}.insert({{ valueRef }}.end(), std::move(itemValue));
 		}
 	{% else %}
 	// Make handler for well-known type {{ typeInfo.type.type }}
@@ -50,8 +51,16 @@ value = {{ valueRef }};
 	JsonSerialize(value, {{ valueRef }}, allocator);
 {% endmacro %}
 
+{% macro DeserializeEnumType(valueRef) %}
+	JsonDeserialize(value, {{ valueRef }});
+{% endmacro %}
+
 {% macro SerializeRecordType(valueRef) %}
 	JsonSerialize(value, {{ valueRef }}, allocator);
+{% endmacro %}
+
+{% macro DeserializeRecordType(valueRef) %}
+	JsonDeserialize(value, {{ valueRef }});
 {% endmacro %}
 
 {% extends "header_skeleton.j2tpl" %}
@@ -64,52 +73,12 @@ value = {{ valueRef }};
 
 {% block namespaced_decls %}{{super()}}{% endblock %}
 
-{# % block namespace_content %}
-{% for enum in ns.enums | sort(attribute="name") %}
-{% set enumName = enum.name %}
-{% set scopeSpec = enum.scopeSpecifier %}
-{% set scopedName = scopeSpec ~ ('::' if scopeSpec) ~ enumName %}
-{% set prefix = (scopedName + '::') if not enumInfo.isScoped else (scopedName ~ '::' ~ scopeSpec ~ ('::' if scopeSpec)) %}
-
-inline const char* {{enumName}}ToString({{scopedName}} e)
-{
-    switch (e)
-    {
-{% for itemName in enum.items | map(attribute="itemName") | sort%}
-    case {{prefix}}{{itemName}}:
-        return "{{itemName}}";
-{% endfor %}
-    }
-    return "Unknown Item";
-}
-
-inline {{scopedName}} StringTo{{enumName}}(const char* itemName)
-{
-    static std::pair<const char*, {{scopedName}}> items[] = {
-{% for itemName in enum.items | map(attribute="itemName") | sort %}
-        {"{{itemName}}", {{prefix}}{{itemName}} } {{',' if not loop.last }}
-{% endfor %}
-    };
-
-    auto p = std::lower_bound(begin(items), end(items), itemName,
-                      [](auto&& i, auto&& v) {return strcmp(i.first, v) < 0;});
-    
-    if (p == end(items) || strcmp(p->first, itemName) != 0)
-        throw std::invalid_argument(std::string("Bad {{scopedName}} enum item name: ") + itemName);
-    
-    return p->second;
-}
-{% endfor %}{% endblock % #}
-
 {% macro SerializeBuitinType(m, t) %}
 	node.AddMember("{{ m.name }}", value.{{ m.name }}, allocator);
 {% endmacro %}
 
 {% block global_decls %}
 {% for ns in [rootNamespace] recursive %}
-#if 0
-{{ ns | pprint }}
-#endif
 {% for enum in ns.enums %}
 {% set enumName = enum.name %}
 {% set scopeSpec = enum.scopeSpecifier %}
@@ -126,9 +95,29 @@ void JsonSerialize(rapidjson::Value& node, {{ enum.fullQualifiedName }} value, r
 {% endfor %}
     }
 }
+
+void JsonDeserialize(const rapidjson::Value& node, {{ enum.fullQualifiedName }}& value)
+{
+    static std::pair<const char*, {{scopedName}}> items[] = {
+{% for itemName in enum.items | map(attribute="itemName") | sort %}
+        {"{{itemName}}", {{prefix}}{{itemName}} } {{',' if not loop.last }}
 {% endfor %}
+    };
+
+    const char* itemName = node.GetString();
+
+    auto p = std::lower_bound(begin(items), end(items), itemName,
+                      [](auto&& i, auto&& v) {return strcmp(i.first, v) < 0;});
+    
+    if (p == end(items) || strcmp(p->first, itemName) != 0)
+        throw std::invalid_argument(std::string("Bad {{scopedName}} enum item name: ") + itemName);
+
+    value = p->second;
+}
+{% endfor %}
+
 {% for s in ns.classes %}
-void JsonSerialize(rapidjson::Value& node, {{ s.fullQualifiedName }}& structValue, rapidjson::Document::AllocatorType& allocator)
+void JsonSerialize(rapidjson::Value& node, const {{ s.fullQualifiedName }}& structValue, rapidjson::Document::AllocatorType& allocator)
 {
 	using namespace rapidjson;
 
@@ -136,8 +125,21 @@ void JsonSerialize(rapidjson::Value& node, {{ s.fullQualifiedName }}& structValu
 	{% for m in s.members %}
 	{
 		Value value;
-		{{ m.type | applymacro(macro='ProcessTypedMember', 'Serialize', 'structValue.' + m.name) }}
+		{{ common.ProcessTypedMember(m.type, 'Serialize', 'structValue.' + m.name) }}
 		node.AddMember("{{ m.name }}", value.Move(), allocator);
+	}
+	{% endfor %}
+}
+
+void JsonDeserialize(const rapidjson::Value& node, {{ s.fullQualifiedName }}& structValue)
+{
+	using namespace rapidjson;
+
+	{% for m in s.members %}
+    if (node.HasMember("{{ m.name }}"))
+	{
+		const Value& value = node["{{ m.name }}"];
+		{{ common.ProcessTypedMember(m.type, 'Deserialize', 'structValue.' + m.name) }}
 	}
 	{% endfor %}
 }

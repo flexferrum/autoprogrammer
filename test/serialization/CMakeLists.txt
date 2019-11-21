@@ -13,6 +13,7 @@ include_directories(
     )
 
 find_package(rapidjson)
+find_package(protobuf)
 
 macro(GenerateFile OUTPUT_FILE_NAME TEMPLATE_NAME)
 add_custom_command(OUTPUT ${CODEGEN_DIR}/generated/${OUTPUT_FILE_NAME}
@@ -26,6 +27,15 @@ add_custom_command(OUTPUT ${CODEGEN_DIR}/generated/${OUTPUT_FILE_NAME}
 endmacro()
 
 GenerateFile(json_serialization.h json_serialization.h.j2tpl)
+GenerateFile(protobuf_serialization.proto protobuf_serialization.proto.j2tpl)
+
+protobuf_generate(
+    LANGUAGE cpp
+    PROTOS ${CODEGEN_DIR}/generated/protobuf_serialization.proto
+    PROTOC_OUT_DIR  ${CODEGEN_DIR}/generated/protobuf
+    IMPORT_DIRS ${CODEGEN_DIR}/generated
+    OUT_VAR GENERATED_FILES
+)
 
 if (UNIX)
     include(CMakeFindDependencyMacro)
@@ -33,12 +43,12 @@ if (UNIX)
     set (EXTRA_TEST_LIBS "Threads::Threads")
 endif ()
 
-add_executable(${PROJECT_NAME}
+add_executable(${PROJECT_NAME}          
     ${Sources}
     ${Headers}
     ${GENERATED_FILES}
     )
 
-target_link_libraries(${PROJECT_NAME} gtest::gtest rapidjson::rapidjson ${EXTRA_TEST_LIBS})
+target_link_libraries(${PROJECT_NAME} gtest::gtest rapidjson::rapidjson protobuf::libprotobuf ${EXTRA_TEST_LIBS})
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})

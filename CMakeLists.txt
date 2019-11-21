@@ -66,6 +66,7 @@ else()
 endif()
 
 find_package(Threads)
+find_package(protobuf)
 
 add_subdirectory(thirdparty)
 
