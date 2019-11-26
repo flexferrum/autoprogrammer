@@ -1,0 +1,14 @@
+{% import "common_macros.j2tpl" as common with context %}
+{% extends "header_skeleton.j2tpl" %}
+
+
+{% block global_decls %}
+{% for ns in [rootNamespace] recursive %}
+{% for s in ns.classes %}
+void SerializeToStream(const {{ s.fullQualifiedName }}& value, std::ostream& os);
+bool DeserializeFromStream(std::istream& is, {{ s.fullQualifiedName }}& value);
+{% endfor %}
+{{loop(ns.innerNamespaces)}}
+{% endfor %}
+{% endblock %}
+

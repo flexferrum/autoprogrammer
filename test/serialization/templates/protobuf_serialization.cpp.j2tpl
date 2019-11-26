@@ -1,0 +1,121 @@
+{% import "common_macros.j2tpl" as common with context %}
+
+#include "{{ output_file_name }}.h"
+#include "protobuf/{{ output_file_name }}.pb.h"
+
+{% macro MakeProtobufName(n) -%}
+    {% set name_root = n | replace('::', '_') %}
+    {% if env.package_name -%}
+    {{- '{}::{}' | format(env.package_name, name_root) -}}
+    {%- else -%}
+    {{ name_root }}_pb
+    {%- endif -%}
+{% endmacro %}
+
+{% macro SerializeBuiltinType(memberRef, typeInfo, memberName) %}
+    pbValue.set_{{ memberName | lower }}({{ memberRef }});
+{% endmacro %}
+
+{% macro DeserializeBuiltinType(memberRef, typeInfo, memberName) %}
+    {{ memberRef }} = pbValue.{{ memberName | lower }}();
+{% endmacro %}
+
+{% macro SerializeWellKnownType(memberRef, typeInfo, memberName) %}
+	{% if typeInfo.type.type == 'StdString' %}
+        pbValue.set_{{ memberName | lower }}({{ memberRef }});
+	{% elif typeInfo.type.type == 'StdVector' or typeInfo.type.type == 'StdArray' or typeInfo.type.type == 'StdList' or typeInfo.type.type == 'StdSet' %}
+		{# repeated {{ common.ProcessTypedMember(typeInfo.type.arguments[0], 'ProtobufMember', memberName) }}     #}
+	{% else %}
+	// Make handler for well-known type {{ typeInfo.type.type }}
+	{% endif %}
+{% endmacro %}
+
+{% macro DeserializeWellKnownType(memberRef, typeInfo, memberName) %}
+	{% if typeInfo.type.type == 'StdString' %}
+        {{ memberRef }} = pbValue.{{ memberName | lower }}();
+	{% elif typeInfo.type.type == 'StdVector' or typeInfo.type.type == 'StdArray' or typeInfo.type.type == 'StdList' or typeInfo.type.type == 'StdSet' %}
+		{# repeated {{ common.ProcessTypedMember(typeInfo.type.arguments[0], 'ProtobufMember', memberName) }}     #}
+	{% else %}
+	// Make handler for well-known type {{ typeInfo.type.type }}
+	{% endif %}
+{% endmacro %}
+
+{% macro SerializeEnumType(memberRef, type, memberName) %}
+	pbValue.set_{{ memberName | lower }}({{ type.fullQualifiedName | replace('::', '_') }}ToProtoBuf({{ memberRef }}));
+{% endmacro %}
+
+{% macro DeserializeEnumType(memberRef, type, memberName) %}
+	{{ memberRef }} = {{ type.fullQualifiedName | replace('::', '_') }}FromProtoBuf(pbValue.{{ memberName | lower }}());
+{% endmacro %}
+
+{% macro SerializeRecordType(memberRef, type, memberName) %}
+	{# { MakeProtobufName(type.fullQualifiedName) }} {{ memberName } #}
+{% endmacro %}
+
+
+{% for ns in [rootNamespace] recursive %}
+{% for enum in ns.enums %}
+{% set enumName = enum.name %}
+{% set scopeSpec = enum.scopeSpecifier %}
+{% set scopedName = scopeSpec ~ ('::' if scopeSpec) ~ enumName %}
+{% set prefix = (scopedName + '::') if not enumInfo.isScoped else (scopedName ~ '::' ~ scopeSpec ~ ('::' if scopeSpec)) %}
+{{ MakeProtobufName(enum.fullQualifiedName) }} {{ enum.fullQualifiedName }}ToProtoBuf({{ enum.fullQualifiedName }} value)
+{
+    switch (value)
+    {
+{% for itemName in enum.items | map(attribute="itemName") | sort %}
+    case {{prefix}}{{itemName}}:
+        return {{ MakeProtobufName('pb_' + itemName) }};
+		break;
+{% endfor %}
+    }
+}
+
+{{ enum.fullQualifiedName }} {{ enum.fullQualifiedName }}FromProtoBuf({{ MakeProtobufName(enum.fullQualifiedName) }} value)
+{
+    switch (value)
+    {
+{% for itemName in enum.items | map(attribute="itemName") | sort %}
+    case {{ MakeProtobufName('pb_' + itemName) }}:
+        return {{prefix}}{{itemName}};
+		break;
+{% endfor %}
+    }
+}
+{% endfor %}
+{% for s in ns.classes %}
+template<typename T>
+void {{ common.Underscorize(s.fullQualifiedName) }}ToProtoBuf(const {{ s.fullQualifiedName }}& value, T& pbValue)
+{
+    {% for m in s.members %}
+        {{ common.ProcessTypedMember(m.type, 'Serialize', 'value.' + m.name, m.name) }}
+    {% endfor +%}
+}
+
+template<typename T>
+void {{ common.Underscorize(s.fullQualifiedName) }}FromProtoBuf({{ s.fullQualifiedName }}& value, const T& pbValue)
+{
+    {% for m in s.members %}
+        {{ common.ProcessTypedMember(m.type, 'Deserialize', 'value.' + m.name, m.name) }}
+    {% endfor +%}
+}
+
+void SerializeToStream(const {{ s.fullQualifiedName }}& value, std::ostream& os)
+{
+    {{ MakeProtobufName(s.fullQualifiedName) }} pbValue;
+    {{ common.Underscorize(s.fullQualifiedName) }}ToProtoBuf(value, pbValue);
+    pbValue.SerializeToOstream(&os);
+}
+bool DeserializeFromStream(std::istream& is, {{ s.fullQualifiedName }}& value)
+{
+    {{ MakeProtobufName(s.fullQualifiedName) }} pbValue;
+    if (!pbValue.ParseFromIstream(&is))
+        return false;
+
+    {{ common.Underscorize(s.fullQualifiedName) }}FromProtoBuf(value, pbValue);
+
+    return true;
+}
+{% endfor %}
+{{ loop(ns.innerNamespaces) }}
+{% endfor %}
