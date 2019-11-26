@@ -26,22 +26,23 @@ R"(
 {% macro ProcessTypedMember(type, macroPrefix, extraVal) %}
 	{% if type.type.isNoType %}
 	{% elif type.type.isBuiltinType %}
-	{{ extraVal | applymacro(macro=macroPrefix + 'BuiltinType', type ) }}
+	{{ extraVal | applymacro(macro=macroPrefix + 'BuiltinType', type, varargs[0], varargs[1], varargs[2] ) }}
 	{% elif type.type.isRecordType %}
-	{{ extraVal | applymacro(macro=macroPrefix + 'RecordType', type ) }}
+	{{ extraVal | applymacro(macro=macroPrefix + 'RecordType', type, varargs[0], varargs[1], varargs[2] ) }}
 	{% elif type.type.isTemplateType %}
-	{{ extraVal | applymacro(macro=macroPrefix + 'TemplateType', type ) }}
+	{{ extraVal | applymacro(macro=macroPrefix + 'TemplateType', type, varargs[0], varargs[1], varargs[2] ) }}
 	{% elif type.type.isWellKnownType %}
-	{{ extraVal | applymacro(macro=macroPrefix + 'WellKnownType', type ) }}
+	{{ extraVal | applymacro(macro=macroPrefix + 'WellKnownType', type, varargs[0], varargs[1], varargs[2] ) }}
 	{% elif type.type.isArrayType %}
-	{{ extraVal | applymacro(macro=macroPrefix + 'ArrayType', type, type.type.dims, type.type.itemType ) }}
+	{{ extraVal | applymacro(macro=macroPrefix + 'ArrayType', type, type.type.dims, type.type.itemType, varargs[0], varargs[1], varargs[2] ) }}
 	{% elif type.type.isEnumType %}
-	{{ extraVal | applymacro(macro=macroPrefix + 'EnumType', type ) }}
+	{{ extraVal | applymacro(macro=macroPrefix + 'EnumType', type, varargs[0], varargs[1], varargs[2] ) }}
 	{% else %}
-	{{ extraVal | applymacro(macro=macroPrefix + 'GenericType', type) }}
+	{{ extraVal | applymacro(macro=macroPrefix + 'GenericType', type, varargs[0], varargs[1], varargs[2] ) }}
 	{% endif %}
 {% endmacro %}
 
+{% macro Underscorize(n, filler='_') %}{{ n | replace('::', filler) }}{% endmacro %}
 )";
 
 auto g_headerSkeleton =
@@ -279,6 +280,13 @@ void BasicGenerator::RenderStringTemplate(const char* tplString, std::ostream& o
 
 void BasicGenerator::DoTemplateRender(jinja2::Template& tpl, std::ostream& os, jinja2::ValuesMap& params)
 {
+    // llvm::SmallVector<char, 1024> filePath(m_options.outputHeaderName.begin(), m_options.outputHeaderName.end());
+    auto& outputFileName = llvm::sys::path::stem(m_options.outputHeaderName);
+    auto& outputFileExt = llvm::sys::path::extension(m_options.outputHeaderName);
+
+    params["output_file"] = m_options.outputHeaderName;
+    params["output_file_name"] = nonstd::string_view(outputFileName.data(), outputFileName.size());
+    params["output_file_ext"] = nonstd::string_view(outputFileExt.data(), outputFileExt.size());
     auto renderRes = tpl.Render(os, params);
     if (!renderRes)
     {

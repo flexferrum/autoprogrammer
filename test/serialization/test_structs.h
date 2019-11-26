@@ -5,7 +5,11 @@
 #include <vector>
 #include <set>
 
-enum class Enum { Item1, Item2 };
+enum class Enum
+{
+	Item1,
+	Item2
+};
 
 struct SimpleStruct
 {

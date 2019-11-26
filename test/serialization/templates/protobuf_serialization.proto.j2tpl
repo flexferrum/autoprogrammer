@@ -1,7 +1,15 @@
 {% import "common_macros.j2tpl" as common with context %}
 syntax = "proto3";
+{% if env.package_name %}package {{ env.package_name }};{% endif %}
 
-{% macro MakeProtobufName(n) %}{{ n | replace('::', '_') }}_pb{% endmacro %}
+{% macro MakeProtobufName(n) -%}
+    {% set name_root = n | replace('::', '_') %}
+    {% if env.package_name -%}
+    {{- name_root -}}
+    {%- else -%}
+    {{ name_root }}_pb
+    {%- endif -%}
+{% endmacro %}
 
 {% macro ProtobufMemberBuiltinType(memberName, typeInfo) %}
     {% set type=typeInfo.type.type %}
