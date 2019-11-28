@@ -37,12 +37,14 @@ GenerateFile(protobuf_serialization.h protobuf_serialization.h.j2tpl)
 protobuf_generate(
     LANGUAGE cpp
     PROTOS ${CODEGEN_DIR}/generated/protobuf_serialization.proto
-    PROTOC_OUT_DIR  ${CODEGEN_DIR}/generated/protobuf
+    PROTOC_OUT_DIR  ${CODEGEN_DIR}/generated
     IMPORT_DIRS ${CODEGEN_DIR}/generated
     OUT_VAR GENERATED_PROTO_FILES
 )
 
-list(APPEND GENERATED_FILES ${GENERATED_PROTO_FILES})
+message (STATUS ">>>>>>#######1111 ${GENERATED_FILES}")
+# list(APPEND GENERATED_FILES ${CODEGEN_DIR}/generated/protobuf/protobuf_serialization.pb.cc ${CODEGEN_DIR}/generated/protobuf/protobuf_serialization.pb.h)
+message (STATUS ">>>>>>#######2222 ${GENERATED_FILES}")
 
 if (UNIX)
     include(CMakeFindDependencyMacro)
@@ -54,6 +56,7 @@ add_executable(${PROJECT_NAME}
     ${Sources}
     ${Headers}
     ${GENERATED_FILES}
+    ${GENERATED_PROTO_FILES}
     )
 
 target_link_libraries(${PROJECT_NAME} gtest::gtest rapidjson::rapidjson protobuf::libprotobuf Boost::Boost ${EXTRA_TEST_LIBS})
