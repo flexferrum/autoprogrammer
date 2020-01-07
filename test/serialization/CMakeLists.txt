@@ -11,7 +11,7 @@ file (MAKE_DIRECTORY ${CODEGEN_DIR}/generated)
 
 include_directories(
     ${CODEGEN_DIR}
-	${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
     ${CODEGEN_ROOT_DIR}/include
     )
 
@@ -66,6 +66,7 @@ add_executable(${PROJECT_NAME}
     ${Sources}
     ${Headers}
     ${GENERATED_FILES}
+    ${GENERATED_PROTO_FILES}
     )
 
 target_link_libraries(${PROJECT_NAME} GTest::GTest rapidjson::rapidjson protobuf::libprotobuf Boost::Boost ${EXTRA_TEST_LIBS})

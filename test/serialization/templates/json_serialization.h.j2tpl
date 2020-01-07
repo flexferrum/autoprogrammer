@@ -35,7 +35,7 @@
 	{% if typeInfo.type.type == 'StdString' %}
 		{{ valueRef }} = value.GetString();
 	{% elif typeInfo.type.type == 'StdVector' or typeInfo.type.type == 'StdArray' or typeInfo.type.type == 'StdList' or typeInfo.type.type == 'StdSet' %}
-	    auto& array = value.GetArray();
+	    const auto& array = value.GetArray();
 		for (auto& value : array)
 		{		
             {{ typeInfo.type.arguments[0].printedName }} itemValue;
@@ -65,7 +65,7 @@
 
 {% extends "header_skeleton.j2tpl" %}
 {% block generator_headers %}
- #include <rapidjson/Document.h>
+ #include <rapidjson/document.h>
  #include <rapidjson/rapidjson.h>
  #include <algorithm>
  #include <utility>

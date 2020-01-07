@@ -7,6 +7,7 @@
 #include <clang/AST/DeclTemplate.h>
 
 #include <boost/algorithm/string/find.hpp>
+#include <boost/algorithm/string/replace.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -279,7 +280,11 @@ public:
     bool DetectWellKnownType(WellKnownType& typeInfo)
     {
         bool result = true;
-        if (m_targetType->m_fullQualifiedName == "std::basic_string")
+        std::string fqName = m_targetType->m_fullQualifiedName;
+        boost::algorithm::replace_all(fqName, "::__cxx11", "");
+        boost::algorithm::replace_all(fqName, "::__cxx14", "");
+        boost::algorithm::replace_all(fqName, "::__cxx17", "");
+        if (fqName == "std::basic_string")
         {
             const BuiltinType* charType = typeInfo.GetTypeArg(0)->getAsBuiltin();
             if (charType->type == BuiltinType::Char)
@@ -289,27 +294,27 @@ public:
             else
                 result = false;
         }
-        else if (m_targetType->m_fullQualifiedName == "std::vector")
+        else if (fqName == "std::vector")
             typeInfo.type = WellKnownType::StdVector;
-        else if (m_targetType->m_fullQualifiedName == "std::array")
+        else if (fqName == "std::array")
             typeInfo.type = WellKnownType::StdArray;
-        else if (m_targetType->m_fullQualifiedName == "std::list")
+        else if (fqName == "std::list")
             typeInfo.type = WellKnownType::StdList;
-        else if (m_targetType->m_fullQualifiedName == "std::deque")
+        else if (fqName == "std::deque")
             typeInfo.type = WellKnownType::StdDeque;
-        else if (m_targetType->m_fullQualifiedName == "std::map")
+        else if (fqName == "std::map")
             typeInfo.type = WellKnownType::StdMap;
-        else if (m_targetType->m_fullQualifiedName == "std::set")
+        else if (fqName == "std::set")
             typeInfo.type = WellKnownType::StdSet;
-        else if (m_targetType->m_fullQualifiedName == "std::unordered_map")
+        else if (fqName == "std::unordered_map")
             typeInfo.type = WellKnownType::StdUnorderedMap;
-        else if (m_targetType->m_fullQualifiedName == "std::unordered_set")
+        else if (fqName == "std::unordered_set")
             typeInfo.type = WellKnownType::StdUnorderedSet;
-        else if (m_targetType->m_fullQualifiedName == "std::shared_ptr")
+        else if (fqName == "std::shared_ptr")
             typeInfo.type = WellKnownType::StdSharedPtr;
-        else if (m_targetType->m_fullQualifiedName == "std::unique_ptr")
+        else if (fqName == "std::unique_ptr")
             typeInfo.type = WellKnownType::StdUniquePtr;
-        else if (m_targetType->m_fullQualifiedName == "std::optional")
+        else if (fqName == "std::optional")
             typeInfo.type = WellKnownType::StdOptional;
         else
             result = false;
