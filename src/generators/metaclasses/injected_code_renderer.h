@@ -32,6 +32,7 @@ public:
     bool VisitCXXMemberCallExpr(clang::CXXMemberCallExpr* expr);
     bool VisitCallExpr(clang::CallExpr* expr);
     bool VisitCXXStaticCastExpr(clang::CXXStaticCastExpr* stmt);
+    bool VisitDeclaratorDecl(clang::DeclaratorDecl* stmt);
 
 private:
     void ReplaceStatement(const clang::Stmt* stmt, const std::string& text);

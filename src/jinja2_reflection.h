@@ -462,6 +462,18 @@ struct TypeReflection<reflection::RecordType> : TypeReflected<reflection::Record
 };
 
 template<>
+struct TypeReflection<reflection::GenericNamedType> : TypeReflected<reflection::GenericNamedType>
+{
+    static auto& GetAccessors()
+    {
+        static std::unordered_map<std::string, FieldAccessor> accessors = { { "isGenericNamedType",
+                                                                              [](const reflection::GenericNamedType&) { return true; } } };
+
+        return accessors;
+    }
+};
+
+template<>
 struct TypeReflection<reflection::TemplateType> : TypeReflected<reflection::TemplateType>
 {
     static auto& GetAccessors()

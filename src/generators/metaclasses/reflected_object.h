@@ -47,14 +47,8 @@ using IteratorTPtr = std::shared_ptr<IteratorT>;
 class ReflectedObject
 {
 public:
-    using DataType = boost::variant<
-                Compiler,
-                reflection::ClassInfoPtr,
-                reflection::MethodInfoPtr,
-                reflection::MemberInfoPtr,
-                reflection::TypeInfoPtr,
-                RangeTPtr,
-                IteratorTPtr>;
+    using DataType = boost::
+      variant<Compiler, reflection::ClassInfoPtr, reflection::MethodInfoPtr, reflection::MemberInfoPtr, reflection::TypeInfoPtr, RangeTPtr, IteratorTPtr>;
 
     ReflectedObject(DataType = DataType());
 
@@ -63,19 +57,21 @@ public:
 #ifndef _MSC_VER
     ReflectedObject(ReflectedObject& val)
         : ReflectedObject(std::move(val))
-    {}
+    {
+    }
 #endif
 
     template<typename U>
     ReflectedObject(U&& val)
         : m_value(std::move(val))
-    {}
+    {
+    }
 
-    ReflectedObject& operator = (const ReflectedObject& val) = default;
-    ReflectedObject& operator = (ReflectedObject&&) = default;
+    ReflectedObject& operator=(const ReflectedObject& val) = default;
+    ReflectedObject& operator=(ReflectedObject&&) = default;
 
-    auto& GetValue() {return m_value;}
-    auto& GetValue() const {return m_value;}
+    auto& GetValue() { return m_value; }
+    auto& GetValue() const { return m_value; }
 
 private:
     DataType m_value;
@@ -102,6 +98,8 @@ public:
     static bool MethodInfo_is_move_ctor(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
     static bool MethodInfo_make_pure_virtual(InterpreterImpl* interpreter, reflection::MethodInfoPtr obj, Value& result);
 
+    static bool TypeInfo_name(InterpreterImpl* interpreter, reflection::TypeInfoPtr obj, Value& result);
+
     static bool RangeT_empty(InterpreterImpl* interpreter, RangeTPtr obj, Value& result);
     static bool RangeT_begin(InterpreterImpl* interpreter, RangeTPtr obj, Value& result);
     static bool RangeT_end(InterpreterImpl* interpreter, RangeTPtr obj, Value& result);
@@ -109,6 +107,14 @@ public:
     static bool IteratorT_OperNotEqual_Same(InterpreterImpl* interpreter, IteratorTPtr left, Value& result, IteratorTPtr right);
     static bool IteratorT_OperStar(InterpreterImpl* interpreter, IteratorTPtr left, Value& result);
     static bool IteratorT_OperPrefixInc(InterpreterImpl* interpreter, IteratorTPtr left, Value& result);
+
+    static bool StdString_Operator_PlusEqual(InterpreterImpl* interpreter, const std::string& obj, Value& result, const std::string& right);
+};
+
+class ReflectedFunctions
+{
+public:
+    static bool ConstructString(InterpreterImpl* interpreter, Value& result, const std::string& initValue);
 };
 
 } // interpreter

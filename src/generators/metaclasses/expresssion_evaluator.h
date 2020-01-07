@@ -28,6 +28,7 @@ public:
     void VisitCXXBoolLiteralExpr(const clang::CXXBoolLiteralExpr* expr);
     void VisitExprWithCleanups(const clang::ExprWithCleanups* expr);
     void VisitMaterializeTemporaryExpr(const clang::MaterializeTemporaryExpr* expr);
+    void VisitCXXBindTemporaryExpr(const clang::CXXBindTemporaryExpr* expr);
     void VisitBinaryOperator(const clang::BinaryOperator* expr);
     void VisitUnaryOperator(const clang::UnaryOperator* expr);
     void VisitParenExpr(const clang::ParenExpr* expr);
@@ -70,6 +71,7 @@ private:
 
     bool EvalSubexpr(const clang::Expr* expr, Value& val);
     bool CalculateCallArgs(const clang::Expr* const* args, unsigned numArgs, std::vector<Value>& argValues);
+    void ReplaceByReference(Value& origValue, const Value& newValue);
     void ReportError(const clang::SourceLocation& loc, const std::string& errMsg);
 
 private:

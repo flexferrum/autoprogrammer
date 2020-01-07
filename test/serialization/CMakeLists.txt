@@ -5,11 +5,14 @@ include (collect_sources)
 CollectSources(Sources Headers ${CMAKE_CURRENT_SOURCE_DIR}  ${CMAKE_CURRENT_SOURCE_DIR})
 
 set (CODEGEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/codegen)
+set (METACLASSES_GEN_FILE ${CODEGEN_DIR}/generated/serialization.meta.h)
 
 file (MAKE_DIRECTORY ${CODEGEN_DIR}/generated)
 
 include_directories(
     ${CODEGEN_DIR}
+	${CMAKE_CURRENT_BINARY_DIR}
+    ${CODEGEN_ROOT_DIR}/include
     )
 
 find_package(rapidjson)
@@ -32,17 +35,26 @@ GenerateFile(protobuf_serialization.proto protobuf_serialization.proto.j2tpl "-t
 GenerateFile(protobuf_serialization.cpp protobuf_serialization.cpp.j2tpl "-tpl-param" "package_name=serialization_test")
 GenerateFile(protobuf_serialization.h protobuf_serialization.h.j2tpl)
 
-# list(APPEND GENERATED_FILES ${CODEGEN_DIR}/generated/protobuf_serialization.cpp)
+add_custom_command(OUTPUT ${METACLASSES_GEN_FILE}
+    COMMAND $<TARGET_FILE:${CODEGEN_BIN_NAME}> -gen-metaclasses -show-clang-diag -ohdr ${METACLASSES_GEN_FILE} -input ${CMAKE_CURRENT_SOURCE_DIR}/meta_test_structs.h -- clang-cl -std=c++14 -x c++ ${CMAKE_CXX_FLAGS} -I ${CODEGEN_ROOT_DIR}/include -I ${FLEXLIB_INCLUDE_DIR} -I ${rapidjson_INCLUDE_DIRS}
+    MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/meta_test_structs.h
+    DEPENDS ${CODEGEN_BIN_NAME}
+    COMMENT "Generating metaclasses implementation for ${CMAKE_CURRENT_SOURCE_DIR}/meta_test_structs.h"
+    )
 
-protobuf_generate(
-    LANGUAGE cpp
-    PROTOS ${CODEGEN_DIR}/generated/protobuf_serialization.proto
-    PROTOC_OUT_DIR  ${CODEGEN_DIR}/generated/protobuf
-    IMPORT_DIRS ${CODEGEN_DIR}/generated
-    OUT_VAR GENERATED_PROTO_FILES
+
+# list(APPEND GENERATED_FILES ${CODEGEN_DIR}/generated/protobuf_serialization.cpp)
+set (PROTOBUF_IMPORT_DIRS ${CODEGEN_DIR}/generated)
+
+protobuf_generate_cpp(
+    GENERATED_PROTO_SOURCES
+    GENERATED_PROTO_HEADERS
+    ${CODEGEN_DIR}/generated/protobuf_serialization.proto
+#    PROTOC_OUT_DIR  ${CODEGEN_DIR}/generated/protobuf
+#    IMPORT_DIRS ${CODEGEN_DIR}/generated
 )
 
-list(APPEND GENERATED_FILES ${GENERATED_PROTO_FILES})
+list(APPEND GENERATED_FILES ${GENERATED_PROTO_SOURCES}  ${GENERATED_PROTO_HEADERS} ${METACLASSES_GEN_FILE})
 
 if (UNIX)
     include(CMakeFindDependencyMacro)
@@ -56,6 +68,6 @@ add_executable(${PROJECT_NAME}
     ${GENERATED_FILES}
     )
 
-target_link_libraries(${PROJECT_NAME} gtest::gtest rapidjson::rapidjson protobuf::libprotobuf Boost::Boost ${EXTRA_TEST_LIBS})
+target_link_libraries(${PROJECT_NAME} GTest::GTest rapidjson::rapidjson protobuf::libprotobuf Boost::Boost ${EXTRA_TEST_LIBS})
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})

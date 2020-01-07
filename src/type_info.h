@@ -139,10 +139,14 @@ struct DecltypeType
     const clang::Expr* declTypeExpr;
 };
 
+struct GenericNamedType
+{
+};
+
 class TypeInfo
 {
 public:
-    using Type = boost::variant<NoType, BuiltinType, RecordType, TemplateType, WellKnownType, ArrayType, EnumType, DecltypeType, TemplateParamType>;
+    using Type = boost::variant<NoType, BuiltinType, RecordType, TemplateType, WellKnownType, ArrayType, EnumType, DecltypeType, TemplateParamType, GenericNamedType>;
 
     struct TypeDescr
     {
@@ -249,6 +253,7 @@ public:
             bool operator() (const EnumType&) const {return false;}
             bool operator() (const DecltypeType&) const {return false;}
             bool operator() (const TemplateParamType&) const {return true;}
+            bool operator() (const GenericNamedType&) const { return false; }
 
             bool operator() (const RecordType&) const
             {
@@ -392,6 +397,12 @@ inline std::ostream& operator << (std::ostream& os, const DecltypeType& tp)
 inline std::ostream& operator << (std::ostream& os, const TemplateParamType& tp)
 {
     os << "AUTO[ispack=" << tp.isPack << "]";
+    return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const GenericNamedType& tp)
+{
+    os << "GENERIC[]";
     return os;
 }
 

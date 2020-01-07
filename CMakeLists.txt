@@ -45,7 +45,7 @@ set (FLEXLIB_INCLUDE_DIR ${FlexLib_DIR}/include)
 
 set (CODEGEN_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-find_package(gtest)
+find_package(GTest)
 
 message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_ID}")
 message (STATUS "##### COMPILER = ${CMAKE_CXX_COMPILER_VERSION}")
@@ -66,7 +66,7 @@ else()
 endif()
 
 find_package(Threads)
-find_package(protobuf)
+# find_package(protobuf)
 
 add_subdirectory(thirdparty)
 

@@ -13,6 +13,7 @@ include_directories(
     ${CODEGEN_ROOT_DIR}/include
     )
 
+
 set (METACLASSES_GEN_FILE ${CODEGEN_DIR}/generated/test_interface.meta.h)
 
 add_custom_command(OUTPUT ${METACLASSES_GEN_FILE}
@@ -34,6 +35,6 @@ add_executable(${PROJECT_NAME}
     ${METACLASSES_GEN_FILE}
     )
 
-target_link_libraries(${PROJECT_NAME} gtest::gtest ${EXTRA_TEST_LIBS})
+target_link_libraries(${PROJECT_NAME} GTest::GTest ${EXTRA_TEST_LIBS})
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})

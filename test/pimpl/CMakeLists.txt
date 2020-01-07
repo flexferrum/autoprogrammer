@@ -33,6 +33,6 @@ add_executable(${PROJECT_NAME}
     ${PIMPL_GEN_FILE}
     )
 
-target_link_libraries(${PROJECT_NAME} gtest::gtest ${EXTRA_TEST_LIBS})
+target_link_libraries(${PROJECT_NAME} GTest::GTest ${EXTRA_TEST_LIBS})
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})

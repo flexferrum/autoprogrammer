@@ -773,7 +773,13 @@ reflection::TypeInfo::TypeDescr InterpreterImpl::GetProjectedTypeName(const refl
     if (!ExecuteExpression(type->declTypeExpr, projectResult))
         return reflection::TypeInfo::TypeDescr();
 
-    auto typeDescr = boost::apply_visitor(TypeProjector(m_astContext), boost::get<ReflectedObject>(&GetActualValue(projectResult)->GetValue())->GetValue());
+    auto actualValue = GetActualValue(projectResult)->GetValue();
+    const std::string* typeName = boost::get<std::string>(&actualValue);
+    reflection::TypeInfo::TypeDescr typeDescr;
+    if (typeName != nullptr)
+        typeDescr.name = *typeName;
+    else
+        typeDescr = boost::apply_visitor(TypeProjector(m_astContext), boost::get<ReflectedObject>(&actualValue)->GetValue());
 
     if (origTypeDescr.isConst)
         typeDescr.isConst = true;

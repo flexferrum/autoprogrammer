@@ -150,6 +150,14 @@ bool ReflectedMethods::MethodInfo_make_pure_virtual(InterpreterImpl* interpreter
     return true;
 }
 
+bool ReflectedMethods::TypeInfo_name(InterpreterImpl* interpreter, reflection::TypeInfoPtr obj, Value& result)
+{
+    result = Value(std::string(obj->getDeclaredName()));
+
+    std::cout << "#### ReflectedMethods::TypeInfo_name called. Object: " << obj << std::endl;
+    return true;
+}
+
 bool ReflectedMethods::RangeT_empty(InterpreterImpl* interpreter, RangeTPtr obj, Value& result)
 {
     std::cout << "#### ReflectedMethods::RangeT_empty called. Object: " << obj << std::endl;
@@ -196,6 +204,20 @@ bool ReflectedMethods::IteratorT_OperPrefixInc(InterpreterImpl* interpreter, Ite
     result = Value(left);
 
     std::cout << "#### IteratorT_IteratorT_OperPrefixInc called." << std::endl;
+    return true;
+}
+
+bool ReflectedMethods::StdString_Operator_PlusEqual(InterpreterImpl* interpreter, const std::string& obj, Value& result, const std::string& right)
+{
+    result = obj + right;
+
+    std::cout << "#### ReflectedMethods::StdString_Operator_PlusEqual." << std::endl;
+    return true;
+}
+
+bool ReflectedFunctions::ConstructString(InterpreterImpl* interpreter, Value& result, const std::string& initValue)
+{
+    result = initValue;
     return true;
 }
 } // interpreter

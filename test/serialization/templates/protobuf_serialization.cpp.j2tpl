@@ -1,7 +1,7 @@
 {% import "common_macros.j2tpl" as common with context %}
 
 #include "{{ output_file_name }}.h"
-#include "protobuf/{{ output_file_name }}.pb.h"
+#include "{{ output_file_name }}.pb.h"
 
 {% macro MakeProtobufName(n) -%}
     {% set name_root = n | replace('::', '_') %}

@@ -1,14 +1,15 @@
 #include "expresssion_evaluator.h"
-#include "value_ops.h"
-#include "reflected_range.h"
-#include "../../type_info.h"
 
+#include "../../type_info.h"
+#include "reflected_range.h"
+#include "value_ops.h"
+
+#include <clang/AST/Attr.h>
 #include <clang/AST/Decl.h>
-#include <clang/AST/DeclTemplate.h>
 #include <clang/AST/DeclCXX.h>
+#include <clang/AST/DeclTemplate.h>
 #include <clang/AST/Expr.h>
 #include <clang/AST/ExprCXX.h>
-#include <clang/AST/Attr.h>
 #include <clang/AST/TemplateBase.h>
 
 #include <iostream>
@@ -32,8 +33,6 @@ void ExpressionEvaluator::VisitCXXMemberCallExpr(const clang::CXXMemberCallExpr*
     VisitorScope vScope(this, "VisitCXXMemberCallExpr");
     const clang::CXXRecordDecl* rec = expr->getRecordDecl();
     const clang::CXXMethodDecl* method = expr->getMethodDecl();
-
-
 
     std::string recName = rec->getQualifiedNameAsString();
     dbg() << "[ExpressionEvaluator] Call method '" << method->getNameAsString() << "' from '" << recName << "'" << std::endl;
@@ -93,6 +92,25 @@ void ExpressionEvaluator::VisitCallExpr(const CallExpr* expr)
         for (auto& arg : types)
             dbg() << "[ExpressionEvaluator] \t" << arg << std::endl;
 
+        result = Value(ReflectedObject(types[0]));
+        m_evalResult = true;
+        vScope.Submit(std::move(result));
+    }
+    if (fnName == "meta::reflect_type_list")
+    {
+        const clang::TemplateArgumentList* tplArgs = function->getTemplateSpecializationArgs();
+        if (tplArgs == nullptr)
+        {
+            dbg() << "[ExpressionEvaluator] Template arguments list empty for meta::reflect_type" << std::endl;
+            return;
+        }
+
+        std::vector<reflection::TypeInfoPtr> types;
+        ExtractTemplateTypeArgs(tplArgs->asArray(), types, m_interpreter->m_astContext);
+        dbg() << "[ExpressionEvaluator] Template arguments:" << std::endl;
+        for (auto& arg : types)
+            dbg() << "[ExpressionEvaluator] \t" << arg << std::endl;
+
         auto range = MakeStdCollectionRefRange(std::move(types));
         result = Value(ReflectedObject(range));
         m_evalResult = true;
@@ -138,9 +156,13 @@ void ExpressionEvaluator::VisitCXXConstructExpr(const clang::CXXConstructExpr* e
     }
     else
     {
-        dbg() << "!!!!! Unsupported (yet!) type of ctor!" << std::endl;
-        m_evalResult = false;
-        return;
+        std::vector<Value> args;
+        if (!CalculateCallArgs(expr->getArgs(), expr->getNumArgs(), args))
+            return;
+
+        dbg() << "[ExpressionEvaluator] Constructor call." << std::endl;
+
+        m_evalResult = value_ops::CallFunction(m_interpreter, ctorDecl, args, result);
     }
     vScope.Submit(std::move(result));
 }
@@ -148,10 +170,12 @@ void ExpressionEvaluator::VisitCXXConstructExpr(const clang::CXXConstructExpr* e
 void ExpressionEvaluator::VisitCXXOperatorCallExpr(const clang::CXXOperatorCallExpr* expr)
 {
     VisitorScope vScope(this, "VisitCXXOperatorCallExpr");
-    dbg() << "[ExpressionEvaluator] Overloaded operator call found. Num args: " << expr->getNumArgs() << ", DeclKind: '" << expr->getCalleeDecl()->getDeclKindName() << "'" << std::endl;
+    dbg() << "[ExpressionEvaluator] Overloaded operator call found. Num args: " << expr->getNumArgs() << ", DeclKind: '"
+          << expr->getCalleeDecl()->getDeclKindName() << "'" << std::endl;
 
     const clang::Decl* calleeDecl = expr->getCalleeDecl();
     const clang::CXXMethodDecl* operAsMethod = llvm::dyn_cast_or_null<CXXMethodDecl>(calleeDecl);
+    const clang::FunctionDecl* operAsFunction = llvm::dyn_cast_or_null<FunctionDecl>(calleeDecl);
 
     std::vector<Value> args;
     Value result;
@@ -162,6 +186,12 @@ void ExpressionEvaluator::VisitCXXOperatorCallExpr(const clang::CXXOperatorCallE
     {
         std::vector<Value> newArgs(std::make_move_iterator(args.begin() + 1), std::make_move_iterator(args.end()));
         m_evalResult = value_ops::CallMember(m_interpreter, args[0], operAsMethod, newArgs, result);
+        if (m_evalResult && expr->isAssignmentOp())
+            ReplaceByReference(args[0], result);
+    }
+    else
+    {
+        m_evalResult = value_ops::CallFunction(m_interpreter, operAsFunction, args, result);
     }
 
     vScope.Submit(std::move(result));
@@ -235,6 +265,19 @@ void ExpressionEvaluator::VisitMaterializeTemporaryExpr(const clang::Materialize
     Value val;
 
     if (!EvalSubexpr(expr->GetTemporaryExpr(), val))
+        return;
+
+    m_evalResult = true;
+    vScope.Submit(std::move(val));
+}
+
+void ExpressionEvaluator::VisitCXXBindTemporaryExpr(const clang::CXXBindTemporaryExpr* expr)
+{
+    VisitorScope vScope(this, "VisitCXXBindTemporaryExpr");
+
+    Value val;
+
+    if (!EvalSubexpr(expr->getSubExpr(), val))
         return;
 
     m_evalResult = true;
@@ -329,7 +372,6 @@ void ExpressionEvaluator::VisitParenExpr(const ParenExpr* expr)
     m_evalResult = true;
     vScope.Submit(std::move(val));
     // dbg() << "[ExpressionEvaluator] Unary operator found: '" << UnaryOperator::getOpcodeStr(expr->getOpcode()).str() << "'" << std::endl;
-
 }
 
 bool ExpressionEvaluator::EvalSubexpr(const Expr* expr, Value& val)
@@ -343,7 +385,7 @@ bool ExpressionEvaluator::EvalSubexpr(const Expr* expr, Value& val)
 
 bool ExpressionEvaluator::CalculateCallArgs(const Expr* const* args, unsigned numArgs, std::vector<Value>& argValues)
 {
-    for (unsigned argNum = 0; argNum < numArgs; ++ argNum)
+    for (unsigned argNum = 0; argNum < numArgs; ++argNum)
     {
         auto& arg = args[argNum];
         dbg() << "[ExpressionEvaluator] Enter evaluation of arg #" << argNum << "'" << std::endl;
@@ -357,12 +399,36 @@ bool ExpressionEvaluator::CalculateCallArgs(const Expr* const* args, unsigned nu
     return true;
 }
 
+void ExpressionEvaluator::ReplaceByReference(Value& origValue, const Value& newValue)
+{
+    auto& val = origValue.GetValue();
+    Value* ptr = nullptr;
+
+    auto ptrCase = boost::get<Value::Pointer>(&val);
+    if (ptrCase != nullptr)
+        ptr = ptrCase->pointee;
+    else
+    {
+        auto intRefCase = boost::get<Value::InternalRef>(&val);
+        if (intRefCase != nullptr)
+            ptr = intRefCase->pointee;
+        else
+        {
+            auto refCase = boost::get<Value::Reference>(&val);
+            if (refCase != nullptr)
+                ptr = refCase->pointee;
+        }
+    }
+
+    if (ptr != nullptr)
+        ptr->AssignValue(newValue);
+}
+
 void ExpressionEvaluator::ReportError(const SourceLocation& loc, const std::string& errMsg)
 {
     m_interpreter->Report(MessageType::Error, loc, errMsg);
     m_evalResult = false;
 }
-
 
 } // interpreter
 } // codegen

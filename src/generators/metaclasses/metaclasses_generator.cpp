@@ -25,7 +25,7 @@ R"(
 {% block namespaced_decls %}{{super()}}{% endblock %}
 
 {% block namespace_content %}
-{% for class in ns.classes | sort(attribute="name") %}
+{% for class in ns.classes %}
 
 {% macro Decls(class, access) %}
 {% for part in class.genericParts | selectattr('accessType', 'in', access) %}

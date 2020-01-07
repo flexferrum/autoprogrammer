@@ -1,13 +1,15 @@
-#include "test_structs.h"
 #include "hana_test_structs.h"
+#include "test_structs.h"
 
 #include <generated/json_serialization.h>
 #include <generated/protobuf_serialization.h>
 #include <gtest/gtest.h>
-#include <rapidjson/rapidjson.h>
 #include <rapidjson/document.h>
+#include <rapidjson/rapidjson.h>
 
-TEST(JsonSerialization, SimpleSerialization) 
+#include <generated/serialization.meta.h>
+
+TEST(JsonSerialization, SimpleSerialization)
 {
     SimpleStruct s;
     s.intField = 100500;
@@ -56,7 +58,7 @@ TEST(ProtobufSerialization, SimpleSerializationDeserialization)
     }
 
     SimpleStruct s2;
-    { 
+    {
         std::istringstream is(buffer);
         DeserializeFromStream(is, s2);
     }

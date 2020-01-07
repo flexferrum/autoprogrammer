@@ -51,6 +51,8 @@ class TypeInfo
 public:
     template<typename T>
     TypeInfo& operator = (T&& other);
+    const std::string& name();
+    const std::string& full_qualified_name();
 };
 
 class ClassMemberBase
@@ -178,6 +180,15 @@ struct Projector : public ProjectorBase
     Projector<T> $_project_member(U&&);
 
     Projector<T>* operator ->();
+
+    template<typename U>
+    friend bool operator == (const U&, const Projector<T>&) { return true; }
+    template<typename U>
+    friend bool operator == (const Projector<T>&, const U&) { return true; }
+    template<typename U>
+    friend bool operator != (const U&, const Projector<T>&) { return true; }
+    template<typename U>
+    friend bool operator != (const Projector<T>&, const U&) { return true; }
 };
 
 } // detail
@@ -200,7 +211,7 @@ template<typename T>
 TypeInfo& reflect_type();
 
 template<typename ... T>
-Range<TypeInfo>& reflect_type();
+Range<TypeInfo>& reflect_type_list();
 } // meta
 
 #ifdef FL_CODEGEN_INVOKED_
@@ -210,7 +221,7 @@ struct MetaClassInstance_##InstClassName : public meta::detail::MetaClassImplBas
     static constexpr std::initializer_list<meta::MetaclassMethodPtr> metaPtrList_ = {__VA_ARGS__}; \
     ClassType InstClassName; \
 }; \
-\
+ClassType InstClassName; \
 ClassType MetaClassInstance_##InstClassName::InstClassName
 #else
 #define METACLASS_INST_IMPL(InstClassName, ClassType, ...) \
@@ -218,7 +229,7 @@ struct MetaClassInstance_##InstClassName : public meta::detail::MetaClassImplBas
 { \
     class InstClassName; \
 }; \
-\
+ClassType InstClassName;\
 ClassType MetaClassInstance_##InstClassName::InstClassName
 #endif
 
@@ -244,6 +255,7 @@ ClassType MetaClassInstance_##InstClassName::InstClassName
 #define $_v(v) meta::project(v)
 #define $_mem(v) $_project_member(v)
 #define t_$(v) meta::reflect_type<v>()
+#define tl_$(v) meta::reflect_type_list<v...>()
 #define $_str(str) meta::project(#str)
 
 #endif // INCLUDE_META_METACLASS_H

@@ -1,5 +1,6 @@
 #include "injected_code_renderer.h"
 #include "cpp_interpreter_impl.h"
+#include "value_ops.h"
 
 #include <llvm/Support/raw_ostream.h>
 
@@ -55,13 +56,13 @@ bool InjectedCodeRenderer::VisitCallExpr(clang::CallExpr* expr)
         return true;
 
     std::string funcName = callee->getQualifiedNameAsString();
-    if (funcName != "meta::project")
-        return true;
+	if (funcName == "meta::project")
+	{
+        Value result;
+        m_interpreter->ExecuteExpression(expr->getArg(0), result);
 
-    Value result;
-    m_interpreter->ExecuteExpression(expr->getArg(0), result);
-
-    ReplaceStatement(expr, result.ToString());
+        ReplaceStatement(expr, result.ToString());
+    }
 
     return true;
 }
@@ -79,6 +80,21 @@ bool InjectedCodeRenderer::VisitCXXStaticCastExpr(clang::CXXStaticCastExpr* stmt
         ReplaceRange(range.getBegin(), range.getEnd(), "<" + newTypeInfo->getPrintedName() + ">");
     }
     return BaseClass::VisitCXXStaticCastExpr(stmt);
+}
+
+bool InjectedCodeRenderer::VisitDeclaratorDecl(clang::DeclaratorDecl * stmt)
+{
+    auto type = stmt->getTypeSourceInfo();
+    auto typeInfo = reflection::TypeInfo::Create(stmt->getType(), m_interpreter->m_astContext);
+    auto decltypeType = typeInfo->getAsDecltypeType();
+    if (decltypeType != nullptr)
+    {
+        auto newDescr = m_interpreter->GetProjectedTypeName(decltypeType, typeInfo->getTypeDescr());
+        auto newTypeInfo = reflection::TypeInfo::Create(newDescr);
+        auto range = type->getTypeLoc().getSourceRange();
+        ReplaceRange(range.getBegin(), range.getEnd(), newTypeInfo->getPrintedName());
+    }
+    return BaseClass::VisitDeclaratorDecl(stmt);
 }
 
 std::string InjectedCodeRenderer::RenderAsSnippet(InterpreterImpl* i, const clang::Stmt* stmt, unsigned buffShift)
@@ -100,7 +116,9 @@ std::string InjectedCodeRenderer::RenderAsSnippet(InterpreterImpl* i, const clan
     if (buffEnd[0] == ';')
         buffEnd ++;
 
-    std::string content(buff + buffShift, buffEnd);
+    std::string content;
+    if (buffEnd - buff > buffShift)
+        content = std::string(buff + buffShift, buffEnd);
 
     InjectedCodeRenderer visitor(i, std::move(content), startOffset);
     stmt->dump();
